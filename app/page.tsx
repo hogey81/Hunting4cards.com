@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCollection } from "@/lib/collection";
 import { cardCode } from "@/lib/set-code";
+import { cardHref } from "@/lib/card-ref";
 import CardImg from "@/components/CardImg";
 import { formatChange, formatEur, formatUpdated, trendChange, type PricedCard } from "@/lib/prices";
 
@@ -104,7 +105,7 @@ export default function CollectionPage() {
           </div>
           <div className="grid">
             {visible.map(({ entry, card, price, change }) => (
-              <Link key={entry.key} href={`/kaart/${entry.cardId}`} className="tile">
+              <Link key={entry.key} href={cardHref(entry.cardId)} className="tile">
                 <div className="tile-img">
                   <CardImg src={card?.image ?? null} name={card?.name ?? cardCode(entry.cardId)} code={cardCode(entry.cardId, card?.localId)} />
                   {entry.quantity > 1 && <span className="qty">{entry.quantity}×</span>}

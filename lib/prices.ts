@@ -1,4 +1,5 @@
-import type { Card, CardmarketPricing } from "./tcgdex";
+import type { Card, CardmarketPricing, Region } from "./tcgdex";
+import { toRef } from "./card-ref";
 
 export type Variant = "normal" | "reverse";
 
@@ -36,6 +37,7 @@ export function trendChange(p: PriceInfo): number | null {
 }
 
 export type PricedCard = {
+  // Card reference: the TCGdex id, with "ja:" in front for Japanese cards.
   id: string;
   name: string;
   image: string | null;
@@ -47,10 +49,10 @@ export type PricedCard = {
   reverse: PriceInfo;
 };
 
-export function toPricedCard(card: Card, image: string | null): PricedCard {
+export function toPricedCard(card: Card, image: string | null, region: Region = "en"): PricedCard {
   const cm = card.pricing?.cardmarket;
   return {
-    id: card.id,
+    id: toRef(region, card.id),
     name: card.name,
     image,
     setId: card.set.id,
