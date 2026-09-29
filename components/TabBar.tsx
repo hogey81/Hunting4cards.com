@@ -19,7 +19,7 @@ const tabs = [
       </>
     ),
   },
-  { href: "/zoeken", label: "Zoeken", center: true, icon: null },
+  { href: "/scan", label: "Scannen", center: true, icon: null },
   {
     href: "/sets",
     label: "Sets",
@@ -58,10 +58,10 @@ export default function TabBar() {
           : path.startsWith(t.href);
         if (t.center) {
           return (
-            <Link key={t.href} href={t.href} className={active ? "tab-center active" : "tab-center"} aria-label="Zoeken" aria-current={active ? "page" : undefined}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-4-4" />
+            <Link key={t.href} href={t.href} className={active ? "tab-center active" : "tab-center"} aria-label="Kaart scannen" aria-current={active ? "page" : undefined}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+                <circle cx="12" cy="13" r="3.5" />
               </svg>
             </Link>
           );
