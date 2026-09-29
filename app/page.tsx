@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCollection } from "@/lib/collection";
+import { cardCode } from "@/lib/set-code";
 import { formatChange, formatEur, formatUpdated, trendChange, type PricedCard } from "@/lib/prices";
 
 type Filter = "Alles" | "Stijgers" | "Dalers";
@@ -104,12 +105,12 @@ export default function CollectionPage() {
             {visible.map(({ entry, card, price, change }) => (
               <Link key={entry.key} href={`/kaart/${entry.cardId}`} className="tile">
                 <div className="tile-img">
-                  {card?.image ? <img src={card.image} alt={card.name} loading="lazy" /> : <span>{card?.name ?? entry.cardId}</span>}
+                  {card?.image ? <img src={card.image} alt={card.name} loading="lazy" /> : <span>{card?.name ?? cardCode(entry.cardId)}</span>}
                   {entry.quantity > 1 && <span className="qty">{entry.quantity}×</span>}
                 </div>
                 <div className="tile-name">{card?.name ?? "…"}</div>
                 <div className="tile-meta">
-                  {entry.language}
+                  {card ? cardCode(card.id, card.localId) : cardCode(entry.cardId)} · {entry.language}
                   {entry.variant === "reverse" ? " · reverse" : ""}
                 </div>
                 <div className="tile-price">

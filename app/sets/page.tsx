@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SetProgress from "@/components/SetProgress";
 import { assetImage, getSerie, getSeries } from "@/lib/tcgdex";
+import { setCode } from "@/lib/set-code";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,11 @@ export default async function SetsPage() {
               const symbol = assetImage(set.symbol) ?? assetImage(set.logo);
               return (
                 <Link key={set.id} href={`/sets/${set.id}`} className="set-row">
-                  <div className="set-symbol">{symbol ? <img src={symbol} alt="" /> : set.id.toUpperCase()}</div>
+                  <div className="set-symbol">{symbol ? <img src={symbol} alt="" /> : setCode(set)}</div>
                   <div className="set-body">
-                    <div className="set-name">{set.name}</div>
+                    <div className="set-name">
+                      {set.name} <span className="set-code">{setCode(set)}</span>
+                    </div>
                     <SetProgress setId={set.id} total={set.cardCount.total} />
                   </div>
                 </Link>

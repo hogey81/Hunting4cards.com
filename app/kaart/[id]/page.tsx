@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AddToCollection from "@/components/AddToCollection";
 import { cardImage, getCard } from "@/lib/tcgdex";
+import { setCode } from "@/lib/set-code";
 import { cardmarketSearchUrl, formatChange, formatEur, formatUpdated, pricesFor, trendChange, type PriceInfo } from "@/lib/prices";
 
 export const revalidate = 3600;
@@ -50,7 +51,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
       <header className="card-head">
         <h1>{card.name}</h1>
         <p className="muted">
-          {card.set.name} · {card.localId}/{card.set.cardCount.official}
+          {card.set.name} · {setCode(card.set)} {card.localId}/{card.set.cardCount.official}
           {card.rarity ? ` · ${card.rarity}` : ""}
         </p>
       </header>

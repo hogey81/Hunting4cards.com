@@ -1,6 +1,7 @@
 import Link from "next/link";
 import OwnedBadge from "@/components/OwnedBadge";
 import { cardImage, searchCards } from "@/lib/tcgdex";
+import { cardCode } from "@/lib/set-code";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const q = ((await searchParams).q ?? "").trim();
@@ -36,7 +37,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 <OwnedBadge cardId={c.id} />
               </div>
               <div className="tile-name">{c.name}</div>
-              <div className="tile-meta">{c.id}</div>
+              <div className="tile-meta">{cardCode(c.id, c.localId)}</div>
             </Link>
           );
         })}
