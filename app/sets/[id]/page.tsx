@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import CardImg from "@/components/CardImg";
 import OwnedBadge from "@/components/OwnedBadge";
 import { assetImage, cardImage, getSet } from "@/lib/tcgdex";
 import { setCode } from "@/lib/set-code";
@@ -26,11 +27,10 @@ export default async function SetPage({ params }: { params: Promise<{ id: string
       </header>
       <div className="grid">
         {set.cards.map((c) => {
-          const img = cardImage(c.image);
           return (
             <Link key={c.id} href={`/kaart/${c.id}`} className="tile">
               <div className="tile-img">
-                {img ? <img src={img} alt={c.name} loading="lazy" /> : <span>{c.name}</span>}
+                <CardImg src={cardImage(c.image)} name={c.name} code={`${code} ${c.localId}`} />
                 <OwnedBadge cardId={c.id} />
               </div>
               <div className="tile-name">{c.name}</div>

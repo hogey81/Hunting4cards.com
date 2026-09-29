@@ -23,3 +23,29 @@ export function cardCode(cardId: string, localId?: string) {
   const number = localId ?? cardId.slice(setId.length + 1);
   return `${setCode(setId)} ${number}`;
 }
+
+// Reverse lookup: "pbl" -> ["me05"]. A few codes are shared by more than one set.
+export function setIdsForCode(code: string): string[] {
+  const wanted = code.trim().toUpperCase();
+  return Object.entries(SET_CODES)
+    .filter(([, c]) => c.toUpperCase() === wanted)
+    .map(([id]) => id);
+}
+
+// Parses queries like "PBL 048", "pbl48", "PBL-048" or "PBL 048/084".
+// Returns null when the text doesn't start with a known set code.
+export function parseCodeQuery(q: string): { setIds: string[]; number: string | null } | null {
+  const text = q.trim();
+  const onlyCode = setIdsForCode(text);
+  if (onlyCode.length) return { setIds: onlyCode, number: null };
+  const m = text.match(/^([A-Za-z0-9]+?)[\s-]*(\d+[A-Za-z]?)(?:\s*\/\s*\d+)?$/);
+  if (!m) return null;
+  const setIds = setIdsForCode(m[1]);
+  return setIds.length ? { setIds, number: m[2] } : null;
+}
+
+// "048" and "48" are the same card number.
+export function sameCardNumber(a: string, b: string) {
+  const norm = (s: string) => s.trim().toUpperCase().replace(/^0+(?=.)/, "");
+  return norm(a) === norm(b);
+}
