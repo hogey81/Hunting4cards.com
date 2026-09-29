@@ -106,6 +106,7 @@ export function cardImage(image: string | undefined, quality: "low" | "high" = "
   return image ? `${image}/${quality}.webp` : null;
 }
 
+// Set logos and symbols. PNG keeps them sharp and transparent.
 export function assetImage(base: string | undefined) {
-  return base ? `${base}.webp` : null;
+  return base ? `${base}.png` : null;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SetLogo from "@/components/SetLogo";
 import SetProgress from "@/components/SetProgress";
 import { assetImage, getSerie, getSeries, type Region } from "@/lib/tcgdex";
 import { setHref, toRef } from "@/lib/card-ref";
@@ -32,11 +33,12 @@ export default async function SetsPage({ searchParams }: { searchParams: Promise
           <h2 className="eyebrow">{serie.name}</h2>
           <div className="list">
             {[...serie.sets].reverse().map((set) => {
-              const symbol = assetImage(set.symbol) ?? assetImage(set.logo);
               const code = region === "ja" ? set.id : setCode(set);
               return (
                 <Link key={set.id} href={setHref(region, set.id)} className="set-row">
-                  <div className="set-symbol">{symbol ? <img src={symbol} alt="" /> : code}</div>
+                  <div className="set-symbol">
+                    <SetLogo sources={[assetImage(set.logo), assetImage(set.symbol)]} code={code} />
+                  </div>
                   <div className="set-body">
                     <div className="set-name">
                       {set.name} <span className="set-code">{code}</span>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import TabBar from "@/components/TabBar";
 import "./globals.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <main className="page">{children}</main>
-        <TabBar />
+        <Suspense fallback={null}>
+          <TabBar />
+        </Suspense>
       </body>
     </html>
   );
