@@ -1,20 +1,20 @@
 import Link from "next/link";
 import CardImg from "@/components/CardImg";
 import OwnedBadge from "@/components/OwnedBadge";
+import SetLogo from "@/components/SetLogo";
 import { assetImage, cardImage, type CardSet, type Region } from "@/lib/tcgdex";
 import { cardHref, toRef } from "@/lib/card-ref";
 import { setCode } from "@/lib/set-code";
 
 export default function SetDetail({ set, region }: { set: CardSet; region: Region }) {
   const jp = region === "ja";
-  const logo = assetImage(set.logo);
   const code = jp ? set.id : setCode(set);
 
   return (
     <>
       <Link href={jp ? "/sets?regio=jp" : "/sets"} className="back">← Sets</Link>
       <header className="set-head">
-        {logo && <img src={logo} alt="" className="set-logo" />}
+        <SetLogo sources={[assetImage(set.logo), assetImage(set.symbol)]} code={null} className="set-logo" />
         <h1>
           {set.name}
           {jp && <span className="badge-jp">JP</span>}
