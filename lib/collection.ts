@@ -5,8 +5,10 @@ import type { Variant } from "./prices";
 
 // For now the collection lives on the device. Accounts and sync can come later.
 
-export const LANGUAGES = ["EN", "NL", "DE", "FR", "JP"] as const;
-export type Language = (typeof LANGUAGES)[number];
+// Languages you can pick for an international card. Japanese cards are separate
+// cards (their own sets and numbers) and are always stored as "JP".
+export const LANGUAGES = ["EN", "NL", "DE", "FR"] as const;
+export type Language = (typeof LANGUAGES)[number] | "JP";
 
 export type CollectionEntry = {
   key: string;

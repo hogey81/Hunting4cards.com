@@ -1,0 +1,81 @@
+import Link from "next/link";
+import AddToCollection from "@/components/AddToCollection";
+import CardImg from "@/components/CardImg";
+import { cardImage, type Card, type Region } from "@/lib/tcgdex";
+import { setHref, toRef } from "@/lib/card-ref";
+import { englishNameForDex } from "@/lib/names";
+import { setCode } from "@/lib/set-code";
+import { cardmarketSearchUrl, formatChange, formatEur, formatUpdated, pricesFor, trendChange, type PriceInfo } from "@/lib/prices";
+
+function PriceBlock({ title, p }: { title: string; p: PriceInfo }) {
+  const change = trendChange(p);
+  return (
+    <section className="price-card">
+      <div className="price-top">
+        <div>
+          <div className="muted small">{title}</div>
+          <div className="price-big">{formatEur(p.trend)}</div>
+        </div>
+        {change != null && (
+          <div className={change >= 0 ? "up" : "down"}>
+            {formatChange(change)} <span className="muted small">t.o.v. 30 dagen</span>
+          </div>
+        )}
+      </div>
+      <div className="price-grid">
+        <div><span>Vanaf</span><strong>{formatEur(p.low)}</strong></div>
+        <div><span>Gem. 7 dagen</span><strong>{formatEur(p.avg7)}</strong></div>
+        <div><span>Gem. 30 dagen</span><strong>{formatEur(p.avg30)}</strong></div>
+      </div>
+    </section>
+  );
+}
+
+export default function CardDetail({ card, region }: { card: Card; region: Region }) {
+  const jp = region === "ja";
+  const code = `${jp ? card.set.id : setCode(card.set)} ${card.localId}`;
+  const englishName = jp ? englishNameForDex(card.dexId?.[0]) : null;
+  const cm = card.pricing?.cardmarket;
+  const normal = pricesFor(cm, "normal");
+  const reverse = pricesFor(cm, "reverse");
+  const hasReverse = reverse.trend != null;
+
+  return (
+    <>
+      <Link href={setHref(region, card.set.id)} className="back">← {card.set.name}</Link>
+      <div className="card-hero">
+        <CardImg src={cardImage(card.image, "high")} name={card.name} code={code} eager />
+      </div>
+      <header className="card-head">
+        <h1>
+          {card.name}
+          {jp && <span className="badge-jp">JP</span>}
+        </h1>
+        <p className="muted">
+          {englishName ? `${englishName} · ` : ""}
+          {card.set.name} · {code}/{card.set.cardCount.official}
+          {card.rarity ? ` · ${card.rarity}` : ""}
+        </p>
+      </header>
+
+      {cm ? (
+        <>
+          <PriceBlock title={jp ? "Trendprijs Japanse kaart (Cardmarket)" : "Trendprijs (Cardmarket)"} p={normal} />
+          {hasReverse && <PriceBlock title="Trendprijs reverse holo" p={reverse} />}
+          <p className="updated-line">
+            <span className="dot" aria-hidden="true" />
+            Cardmarket-prijs van {formatUpdated(normal.updated)}.
+            {jp ? " Dit is de prijs van deze Japanse kaart." : " Dit is de prijs over alle westerse talen samen."}
+          </p>
+        </>
+      ) : (
+        <p className="muted">Voor deze kaart is nog geen Cardmarket-prijs bekend.</p>
+      )}
+
+      <AddToCollection cardRef={toRef(region, card.id)} japanese={jp} hasReverse={hasReverse || !!card.variants?.reverse} />
+      <a href={cardmarketSearchUrl(englishName ?? card.name)} className="btn btn-block" target="_blank" rel="noopener noreferrer">
+        Bekijk op Cardmarket
+      </a>
+    </>
+  );
+}

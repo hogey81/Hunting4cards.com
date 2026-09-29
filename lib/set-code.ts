@@ -1,4 +1,6 @@
 import codes from "./set-codes.json";
+import jpSets from "./jp-sets.json";
+import { parseRef } from "./card-ref";
 
 const SET_CODES: Record<string, string> = codes;
 
@@ -18,10 +20,18 @@ export function setIdFromCardId(cardId: string) {
   return i > 0 ? cardId.slice(0, i) : cardId;
 }
 
-export function cardCode(cardId: string, localId?: string) {
-  const setId = setIdFromCardId(cardId);
-  const number = localId ?? cardId.slice(setId.length + 1);
-  return `${setCode(setId)} ${number}`;
+// Takes a card reference ("me05-048" or "ja:M4-001"). Japanese cards print their set id.
+export function cardCode(ref: string, localId?: string) {
+  const { region, id } = parseRef(ref);
+  const setId = setIdFromCardId(id);
+  const number = localId ?? id.slice(setId.length + 1);
+  return `${region === "ja" ? setId : setCode(setId)} ${number}`;
+}
+
+// Case-insensitive match against the Japanese set ids, e.g. "m4" -> "M4".
+export function japaneseSetId(code: string): string | null {
+  const wanted = code.trim().toUpperCase();
+  return (jpSets as string[]).find((id) => id.toUpperCase() === wanted) ?? null;
 }
 
 // Reverse lookup: "pbl" -> ["me05"]. A few codes are shared by more than one set.
@@ -32,16 +42,19 @@ export function setIdsForCode(code: string): string[] {
     .map(([id]) => id);
 }
 
-// Parses queries like "PBL 048", "pbl48", "PBL-048" or "PBL 048/084".
+export type CodeQuery = { setIds: string[]; jpSetId: string | null; number: string | null };
+
+// Parses queries like "PBL 048", "pbl48", "PBL-048", "PBL 048/084" or the Japanese "M4 001".
 // Returns null when the text doesn't start with a known set code.
-export function parseCodeQuery(q: string): { setIds: string[]; number: string | null } | null {
+export function parseCodeQuery(q: string): CodeQuery | null {
   const text = q.trim();
-  const onlyCode = setIdsForCode(text);
-  if (onlyCode.length) return { setIds: onlyCode, number: null };
-  const m = text.match(/^([A-Za-z0-9]+?)[\s-]*(\d+[A-Za-z]?)(?:\s*\/\s*\d+)?$/);
+  const whole = { setIds: setIdsForCode(text), jpSetId: japaneseSetId(text) };
+  if (whole.setIds.length || whole.jpSetId) return { ...whole, number: null };
+  const m = text.match(/^([A-Za-z0-9.-]+?)[\s-]*(\d+[A-Za-z]?)(?:\s*\/\s*\d+)?$/);
   if (!m) return null;
   const setIds = setIdsForCode(m[1]);
-  return setIds.length ? { setIds, number: m[2] } : null;
+  const jpSetId = japaneseSetId(m[1]);
+  return setIds.length || jpSetId ? { setIds, jpSetId, number: m[2] } : null;
 }
 
 // "048" and "48" are the same card number.
