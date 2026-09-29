@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AddToCollection from "@/components/AddToCollection";
+import CardImg from "@/components/CardImg";
 import { cardImage, getCard } from "@/lib/tcgdex";
 import { setCode } from "@/lib/set-code";
 import { cardmarketSearchUrl, formatChange, formatEur, formatUpdated, pricesFor, trendChange, type PriceInfo } from "@/lib/prices";
@@ -46,7 +47,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     <>
       <Link href={`/sets/${card.set.id}`} className="back">← {card.set.name}</Link>
       <div className="card-hero">
-        {img ? <img src={img} alt={card.name} /> : <div className="card-placeholder">{card.name}</div>}
+        <CardImg src={img} name={card.name} code={`${setCode(card.set)} ${card.localId}`} eager />
       </div>
       <header className="card-head">
         <h1>{card.name}</h1>

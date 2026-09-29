@@ -131,10 +131,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Card detail */
 .card-hero { background: var(--red); border-radius: 22px; padding: 24px; display: flex; justify-content: center; }
 .card-hero img { width: 60%; max-width: 260px; border-radius: 12px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
-.card-placeholder {
-  width: 60%; aspect-ratio: 63 / 88; border-radius: 12px; background: var(--yellow); display: flex;
-  align-items: center; justify-content: center; font-weight: 700;
-}
 .card-head { display: flex; flex-direction: column; gap: 4px; }
 .card-head h1 { font-size: 26px; }
 .price-card { background: var(--surface); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -176,3 +172,11 @@ legend { font-size: 12px; font-weight: 700; color: var(--muted); padding: 0; mar
 }
 .tab.active { color: var(--red); font-weight: 700; }
 .set-code { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: 4px; }
+.card-missing {
+  width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 8px; text-align: center; color: var(--muted); border: 2px dashed var(--line); border-radius: inherit;
+}
+.card-missing strong { color: var(--ink); font-size: 12px; line-height: 1.2; }
+.card-missing span { font-size: 11px; font-weight: 700; }
+.card-missing small { font-size: 10px; }
+.card-hero .card-missing { width: 60%; max-width: 260px; aspect-ratio: 63 / 88; background: var(--surface); border-radius: 12px; }
