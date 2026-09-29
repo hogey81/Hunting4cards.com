@@ -127,7 +127,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .bar > div { height: 100%; background: var(--red); border-radius: 4px; }
 .bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .set-head { display: flex; flex-direction: column; gap: 6px; }
-.set-logo { align-self: flex-start; width: auto; height: auto; max-width: min(100%, 320px); max-height: 96px; object-fit: contain; }
+.set-logo { align-self: center; width: auto; height: auto; max-width: min(100%, 320px); max-height: 96px; object-fit: contain; }
 
 /* Card detail */
 .card-hero { background: var(--red); border-radius: 22px; padding: 24px; display: flex; justify-content: center; }
