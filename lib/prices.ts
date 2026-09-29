@@ -85,6 +85,7 @@ export function formatUpdated(iso: string | null) {
   }).format(new Date(iso));
 }
 
+// Cardmarket has no Dutch site (/nl/ gives a 404), so link to the English one.
 export function cardmarketSearchUrl(name: string) {
-  return `https://www.cardmarket.com/nl/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}`;
+  return `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}`;
 }
