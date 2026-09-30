@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import CardImg from "./CardImg";
 import { entryKey, useCollection } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
-import { hintsFromText, type ScanHints, type ScanMatch } from "@/lib/scan-text";
+import type { ScanMatch } from "@/lib/scan-text";
 
 type Phase =
   | { step: "idle" }
@@ -14,18 +14,17 @@ type Phase =
   | { step: "done"; cards: ScanMatch[]; exact: boolean; read: string }
   | { step: "error"; message: string };
 
-// Draws the photo on a canvas: scaled, grayscale and with more contrast, which
-// helps the text recognition read the small print. `top`/`height` pick a strip (0-1).
-async function prepare(file: File, top = 0, height = 1, maxSide = 1800) {
+// Draws the photo on a canvas, scaled so the small print is large enough to read.
+// No extra filters: they made the colourful card art noisier. `top`/`height` pick a strip (0-1).
+async function prepare(file: File, top = 0, height = 1, maxSide = 1800, maxZoom = 1) {
   const bitmap = await createImageBitmap(file);
   const sy = Math.round(bitmap.height * top);
   const sh = Math.round(bitmap.height * height);
-  const scale = Math.min(maxSide / Math.max(bitmap.width, sh), 3);
+  const scale = Math.min(maxSide / Math.max(bitmap.width, sh), maxZoom);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(sh * scale);
   const ctx = canvas.getContext("2d")!;
-  ctx.filter = "grayscale(1) contrast(1.6)";
   ctx.drawImage(bitmap, 0, sy, bitmap.width, sh, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return canvas;
@@ -44,19 +43,14 @@ async function readText(file: File, onProgress: (p: number) => void) {
     },
   });
   try {
-    const whole = await worker.recognize(await prepare(file));
+    const whole = await worker.recognize(await prepare(file, 0, 1, 2000));
     pass = 1;
-    // The set code and number are small print at the bottom: read that strip enlarged.
-    const bottom = await worker.recognize(await prepare(file, 0.75, 0.25, 2400));
+    // The set code and number are small print near the bottom: read the lower half enlarged.
+    const bottom = await worker.recognize(await prepare(file, 0.45, 0.55, 2600, 2));
     return `${whole.data.text}\n${bottom.data.text}`;
   } finally {
     await worker.terminate();
   }
-}
-
-function describe(h: ScanHints) {
-  if (h.codes.length) return h.codes[0];
-  return [h.names[0], h.number].filter(Boolean).join(" ") || "niets leesbaars";
 }
 
 export default function Scanner() {
@@ -67,13 +61,13 @@ export default function Scanner() {
   const [typed, setTyped] = useState("");
   const { entries, add } = useCollection();
 
-  async function lookup(params: URLSearchParams, read: string) {
+  async function lookup(request: Promise<Response>) {
     setPhase({ step: "searching" });
     try {
-      const res = await fetch(`/api/scan?${params}`);
+      const res = await request;
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setPhase({ step: "done", cards: data.cards, exact: data.exact, read });
+      setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read });
     } catch (e) {
       setPhase({ step: "error", message: e instanceof Error && e.message ? e.message : "Er ging iets mis. Probeer het opnieuw." });
     }
@@ -84,28 +78,20 @@ export default function Scanner() {
     if (photo) URL.revokeObjectURL(photo);
     setPhoto(URL.createObjectURL(file));
     setPhase({ step: "reading", progress: 0 });
-    let hints: ScanHints;
+    let text: string;
     try {
-      hints = hintsFromText(await readText(file, (p) => setPhase({ step: "reading", progress: p })));
+      text = await readText(file, (p) => setPhase({ step: "reading", progress: p }));
     } catch {
       setPhase({ step: "error", message: "De foto kon niet gelezen worden. Probeer het opnieuw of typ de code." });
       return;
     }
-    const params = new URLSearchParams();
-    hints.codes.forEach((c) => params.append("code", c));
-    hints.names.forEach((n) => params.append("name", n));
-    if (hints.number) params.set("number", hints.number);
-    if (!hints.codes.length && !hints.names.length) {
-      setPhase({ step: "done", cards: [], exact: false, read: describe(hints) });
-      return;
-    }
-    await lookup(params, describe(hints));
+    await lookup(fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
   }
 
   function onTyped(e: React.FormEvent) {
     e.preventDefault();
     const q = typed.trim();
-    if (q.length >= 2) lookup(new URLSearchParams({ q }), q);
+    if (q.length >= 2) lookup(fetch(`/api/scan?${new URLSearchParams({ q })}`));
   }
 
   const busy = phase.step === "reading" || phase.step === "searching";
@@ -123,7 +109,7 @@ export default function Scanner() {
               <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
               <rect x="8" y="7" width="8" height="10" rx="1" />
             </svg>
-            <span>Fotografeer de kaart recht van voren, zo groot mogelijk en met goed licht.</span>
+            <span>Leg de kaart plat, fotografeer recht van boven en laat de kaart het hele beeld vullen. Zorg dat de code linksonder (bv. 30C 100/128) scherp is.</span>
           </div>
         )}
         {busy && (
@@ -151,8 +137,8 @@ export default function Scanner() {
           <p className="muted">
             Gelezen: <strong>{phase.read}</strong>.{" "}
             {phase.cards.length === 0
-              ? "Geen kaart gevonden. Typ hieronder de code die onderaan de kaart staat."
-              : phase.exact ? "Is dit je kaart?" : "Welke is het?"}
+              ? "Geen kaart herkend. Maak een scherpere foto van dichtbij, of typ hieronder de code die linksonder op de kaart staat (bv. 30C 100)."
+              : phase.exact ? "Is dit je kaart?" : "Welke is het? Staat hij er niet tussen, typ dan de code hieronder."}
           </p>
           {phase.cards.map((c) => {
             const japanese = parseRef(c.ref).region === "ja";
