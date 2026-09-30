@@ -110,12 +110,17 @@ function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   return canvas;
 }
 
-// The part of the text that could be a card code: "PFL DE 120/094", "120/094",
-// or "SVP EN 085" on promos.
-const codeIn = (text: string) =>
-  text.match(/(?:\b[A-Z0-9]{2,4}\s+)?(?:[A-Z]{2}\s+)?\d{1,3}\s*[/|]\s*\d{2,3}|\b[A-Z0-9]{2,4}\s+[A-Z]{2}\s+\d{1,3}\b/)?.[0] ?? null;
-// Reads with a number that found several cards but not one: after this many, show them.
-const SHOW_CANDIDATES_AFTER = 4;
+// The part of the text that is a card code: "PFL DE 120/094", "120/094", or
+// "SVP EN 085" on promos. Strict on purpose: a carpet or a table read as text
+// easily gives something like "E1 047", which is also a real card.
+const LANG = "(?:EN|DE|FR|IT|ES|PT|NL)";
+const CODE_RE = new RegExp(
+  `(?:\\b[A-Z0-9]{2,4}\\s+)?(?:${LANG}\\s+)?\\d{1,3}\\s*/\\s*\\d{2,3}\\b|\\b[A-Z0-9]{2,4}\\s+${LANG}\\s+\\d{3}\\b`,
+);
+const codeIn = (text: string) => text.match(CODE_RE)?.[0] ?? null;
+// The numbers alone ("120/094"): the same card read twice in a row, whatever the
+// letters came out as, before it is looked up.
+const numbersOf = (code: string) => code.match(/\d{1,3}\s*\/\s*\d{2,3}|\d{3}$/)?.[0].replace(/\s/g, "") ?? code;
 
 const ZOOMS = [1, 1.5, 2, 3];
 // Zoomed in, the phone is held further away: most phones can't focus closer than
@@ -216,8 +221,8 @@ export default function Scanner() {
   useEffect(() => {
     if (!live) return;
     let active = true;
-    let tries = 0;
     let last = "";
+    let previous = "";
     let frame = 0;
     (async () => {
       const worker = await ocrWorker().catch(() => null);
@@ -231,14 +236,16 @@ export default function Scanner() {
         const line = text.replace(/\s+/g, " ").trim();
         const code = codeIn(line);
         setSeen(code ?? "");
-        // The same code again (the card is still in view): nothing new to look up.
-        if (!code || code === last) continue;
-        const res = await post(line).catch(() => null);
+        const numbers = code ? numbersOf(code) : "";
+        const steady = !!code && numbers === previous;
+        previous = numbers;
+        // Not yet read twice, or the same card as before (still in view): nothing to look up.
+        if (!steady || numbers === last) continue;
+        const res = await post(code).catch(() => null);
         const data = res?.ok ? await res.json() : null;
-        if (!active || !data?.cards?.length) continue;
-        if (!data.exact && ++tries < SHOW_CANDIDATES_AFTER) continue;
-        last = code;
-        tries = 0;
+        // Only a code that finds exactly one card counts; otherwise keep looking.
+        if (!active || !data?.exact || !data.cards?.length) continue;
+        last = numbers;
         // Show the card at once, and keep the camera running for the next card.
         setPhoto(null);
         const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
