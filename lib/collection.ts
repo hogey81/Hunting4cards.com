@@ -7,7 +7,7 @@ import type { Variant } from "./prices";
 
 // Languages you can pick for an international card. Japanese cards are separate
 // cards (their own sets and numbers) and are always stored as "JP".
-export const LANGUAGES = ["EN", "NL", "DE", "FR"] as const;
+export const LANGUAGES = ["EN", "NL", "DE", "FR", "IT", "ES", "PT"] as const;
 export type Language = (typeof LANGUAGES)[number] | "JP";
 
 export type CollectionEntry = {

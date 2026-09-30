@@ -1,48 +1,10 @@
 import Link from "next/link";
 import CardImg from "@/components/CardImg";
 import OwnedBadge from "@/components/OwnedBadge";
-import { cardImage, getSet, searchCards, type CardResume, type Region } from "@/lib/tcgdex";
-import { cardCode, parseCodeQuery, sameCardNumber } from "@/lib/set-code";
+import { cardImage, type CardResume, type Region } from "@/lib/tcgdex";
+import { cardCode } from "@/lib/set-code";
 import { cardHref, toRef } from "@/lib/card-ref";
-import { hasJapanese, japaneseNameFor } from "@/lib/names";
-
-async function cardsInSets(setIds: string[], region: Region) {
-  const sets = await Promise.all(setIds.map((id) => getSet(id, region)));
-  return sets.flatMap((set) => set?.cards ?? []);
-}
-
-type Results = { en: CardResume[]; ja: CardResume[] };
-
-// "PBL 048" (international) or "M4 001" (Japanese) finds that card. A bare code lists
-// the whole set, but only when no card is named like it ("Mew" is also a set code).
-// A name searches both: English names are translated to find the Japanese cards too.
-async function search(q: string): Promise<Results> {
-  const code = parseCodeQuery(q);
-  if (code?.number) {
-    const [en, ja] = await Promise.all([
-      cardsInSets(code.setIds, "en"),
-      code.jpSetId ? cardsInSets([code.jpSetId], "ja") : Promise.resolve([]),
-    ]);
-    const hits = {
-      en: en.filter((c) => sameCardNumber(c.localId, code.number!)),
-      ja: ja.filter((c) => sameCardNumber(c.localId, code.number!)),
-    };
-    if (hits.en.length || hits.ja.length) return hits;
-  }
-
-  const jaName = hasJapanese(q) ? q : japaneseNameFor(q)?.ja;
-  const [en, ja] = await Promise.all([
-    hasJapanese(q) ? Promise.resolve([]) : searchCards(q, "en"),
-    jaName ? searchCards(jaName, "ja").catch(() => []) : Promise.resolve([]),
-  ]);
-  if (en.length || ja.length || !code) return { en, ja };
-
-  const [setEn, setJa] = await Promise.all([
-    cardsInSets(code.setIds, "en"),
-    code.jpSetId ? cardsInSets([code.jpSetId], "ja") : Promise.resolve([]),
-  ]);
-  return { en: setEn, ja: setJa };
-}
+import { search, type Results } from "@/lib/search";
 
 function CardGrid({ cards, region }: { cards: CardResume[]; region: Region }) {
   return (
