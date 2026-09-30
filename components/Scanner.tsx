@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardImg from "./CardImg";
 import { entryKey, useCollection } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
@@ -43,7 +43,7 @@ async function readText(file: File, onProgress: (p: number) => void) {
     },
   });
   try {
-    const whole = await worker.recognize(await prepare(file, 0, 1, 2000));
+    const whole = await worker.recognize(await prepare(file, 0, 1, 2000, 2));
     pass = 1;
     // The set code and number are small print near the bottom: read the lower half enlarged.
     const bottom = await worker.recognize(await prepare(file, 0.45, 0.55, 2600, 2));
@@ -53,6 +53,31 @@ async function readText(file: File, onProgress: (p: number) => void) {
   }
 }
 
+// The card outline shown over the live camera, as a share of the frame.
+const GUIDE_WIDTH = 0.78;
+const CARD_RATIO = 88 / 63;
+
+// Cuts the part of the video frame inside the card outline (the video is shown
+// with object-fit: cover, so the visible part is centred) and returns it as a photo.
+function grabCard(video: HTMLVideoElement): Promise<Blob | null> {
+  const box = video.getBoundingClientRect();
+  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
+  let gw = box.width * GUIDE_WIDTH;
+  let gh = gw * CARD_RATIO;
+  if (gh > box.height * 0.92) {
+    gh = box.height * 0.92;
+    gw = gh / CARD_RATIO;
+  }
+  // A small margin, so a card held slightly off-centre is still complete.
+  const w = Math.min(video.videoWidth, (gw * 1.08) / scale);
+  const h = Math.min(video.videoHeight, (gh * 1.06) / scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w);
+  canvas.height = Math.round(h);
+  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, w, h);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+}
+
 export default function Scanner() {
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
@@ -60,6 +85,50 @@ export default function Scanner() {
   const [phase, setPhase] = useState<Phase>({ step: "idle" });
   const [typed, setTyped] = useState("");
   const { entries, add } = useCollection();
+  const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const [live, setLive] = useState(false);
+
+  function stopCamera() {
+    stream.current?.getTracks().forEach((t) => t.stop());
+    stream.current = null;
+    setLive(false);
+  }
+  useEffect(() => stopCamera, []);
+
+  // The camera runs inside the page. Opening the phone's camera app instead made
+  // Android close the page to free memory, and the photo was lost.
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      camera.current?.click();
+      return;
+    }
+    try {
+      stream.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      setLive(true);
+      setPhase({ step: "idle" });
+    } catch {
+      // No permission or no camera: fall back to the phone's own camera.
+      camera.current?.click();
+    }
+  }
+
+  useEffect(() => {
+    if (live && video.current && stream.current) {
+      video.current.srcObject = stream.current;
+      video.current.play().catch(() => {});
+    }
+  }, [live]);
+
+  async function capture() {
+    if (!video.current?.videoWidth) return;
+    const blob = await grabCard(video.current);
+    stopCamera();
+    if (blob) onPhoto(new File([blob], "kaart.jpg", { type: "image/jpeg" }));
+  }
 
   async function lookup(request: Promise<Response>) {
     setPhase({ step: "searching" });
@@ -102,14 +171,20 @@ export default function Scanner() {
         <h1>Kaart scannen</h1>
       </header>
 
-      <div className="scan-frame">
-        {photo ? <img src={photo} alt="Jouw foto" /> : (
+      <div className={live ? "scan-frame live" : "scan-frame"}>
+        {live ? (
+          <>
+            <video ref={video} className="scan-video" playsInline muted />
+            <div className="scan-guide" aria-hidden="true" />
+            <span className="scan-guide-text">Houd de kaart binnen het kader</span>
+          </>
+        ) : photo ? <img src={photo} alt="Jouw foto" /> : (
           <div className="scan-empty">
             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
               <rect x="8" y="7" width="8" height="10" rx="1" />
             </svg>
-            <span>Leg de kaart plat, fotografeer recht van boven en laat de kaart het hele beeld vullen. Zorg dat de code linksonder (bv. 30C 100/128) scherp is.</span>
+            <span>Leg de kaart plat op tafel en houd je telefoon er recht boven. Zorg dat de code linksonder (bv. 30C 100/128) scherp is.</span>
           </div>
         )}
         {busy && (
@@ -122,12 +197,21 @@ export default function Scanner() {
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={gallery} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       <div className="scan-actions">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => camera.current?.click()}>
-          {photo ? "Nieuwe foto" : "Maak een foto"}
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={() => gallery.current?.click()}>
-          Kies uit galerij
-        </button>
+        {live ? (
+          <>
+            <button type="button" className="btn btn-primary" onClick={capture}>Scan kaart</button>
+            <button type="button" className="btn" onClick={stopCamera}>Stoppen</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={startCamera}>
+              {photo ? "Nieuwe scan" : "Start camera"}
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => gallery.current?.click()}>
+              Kies uit galerij
+            </button>
+          </>
+        )}
       </div>
 
       {phase.step === "error" && <p className="muted">{phase.message}</p>}
