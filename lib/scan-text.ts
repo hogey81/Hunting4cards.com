@@ -13,6 +13,7 @@ export type ScanHints = {
   total: number | null; // "193" in "123/193": the size of the set
   pokemon: string[]; // Pokémon names found in the text, in reading order
   words: string[]; // other capitalised words (trainer cards), only used together with the number
+  language: string | null; // printed language code ("DE" in "PAL DE 123/193"), newer cards only
 };
 
 const STOP_WORDS = new Set([
@@ -24,14 +25,16 @@ const STOP_WORDS = new Set([
 ]);
 
 // Letters that text recognition often mixes up in set codes.
-const LOOKALIKES: Record<string, string> = { O: "0", "0": "O", I: "1", "1": "I", S: "5", "5": "S", B: "8", "8": "B", G: "C", C: "G" };
+const LOOKALIKES: Record<string, string[]> = {
+  O: ["0", "D"], "0": ["O"], D: ["O"], Q: ["O"], I: ["1", "L"], "1": ["I"], L: ["I"], S: ["5"], "5": ["S"],
+  B: ["8"], "8": ["B"], G: ["C"], C: ["G"],
+};
 
 function codeVariants(code: string): string[] {
   const up = code.toUpperCase();
   const out = new Set([up]);
   for (let i = 0; i < up.length; i++) {
-    const swap = LOOKALIKES[up[i]];
-    if (swap) out.add(up.slice(0, i) + swap + up.slice(i + 1));
+    for (const swap of LOOKALIKES[up[i]] ?? []) out.add(up.slice(0, i) + swap + up.slice(i + 1));
   }
   return [...out];
 }
@@ -89,6 +92,7 @@ export function hintsFromText(raw: string): ScanHints {
   const codes: string[] = [];
   let number: string | null = null;
   let total: number | null = null;
+  let language: string | null = null;
 
   const addCode = (code: string, num: string) => {
     for (const variant of codeVariants(code)) {
@@ -97,9 +101,10 @@ export function hintsFromText(raw: string): ScanHints {
   };
 
   // "123/193", with the set code (and a language code) in front on newer cards.
-  const numberRe = /(?:([A-Za-z0-9]{2,6})\s+)?(?:(?:EN|NL|DE|FR|IT|ES|PT)\s+)?([A-Z]{0,3}\d{1,3}[a-z]?)\s*\/\s*([A-Z]{0,3}\d{2,3})/g;
+  const numberRe = /(?:([A-Za-z0-9]{2,6})\s+)?(?:(EN|NL|DE|FR|IT|ES|PT)\s+)?([A-Z]{0,3}\d{1,3}[a-z]?)\s*\/\s*([A-Z]{0,3}\d{2,3})/g;
   for (const m of text.matchAll(numberRe)) {
-    const [, code, num, of] = m;
+    const [, code, lang, num, of] = m;
+    if (lang) language ??= lang;
     if (!number) {
       number = num;
       total = /^\d+$/.test(of) ? Number(of) : null;
@@ -108,9 +113,10 @@ export function hintsFromText(raw: string): ScanHints {
   }
 
   // Set code and number printed without the "/total", e.g. promos "SVP EN 085".
-  for (const m of text.matchAll(/\b([A-Z0-9]{2,4})\s+(?:EN|NL|DE|FR|IT|ES|PT)\s+(\d{1,3})\b/g)) {
-    addCode(m[1], m[2]);
-    number ??= m[2];
+  for (const m of text.matchAll(/\b([A-Z0-9]{2,4})\s+(EN|NL|DE|FR|IT|ES|PT)\s+(\d{1,3})\b/g)) {
+    addCode(m[1], m[3]);
+    number ??= m[3];
+    language ??= m[2];
   }
 
   const cleaned = text
@@ -121,7 +127,7 @@ export function hintsFromText(raw: string): ScanHints {
     ...new Set((cleaned.match(/\b[A-Z][a-zé]{3,}\b/g) ?? []).filter((w) => !STOP_WORDS.has(w.toLowerCase()))),
   ].slice(0, 4);
 
-  return { codes: [...new Set(codes)], number, total, pokemon: found.slice(0, 4), words };
+  return { codes: [...new Set(codes)], number, total, pokemon: found.slice(0, 4), words, language };
 }
 
 export function describeHints(h: ScanHints) {

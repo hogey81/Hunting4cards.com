@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import CardImg from "./CardImg";
-import { entryKey, useCollection } from "@/lib/collection";
+import { LANGUAGES, entryKey, useCollection, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
 
@@ -11,7 +11,7 @@ type Phase =
   | { step: "idle" }
   | { step: "reading"; progress: number }
   | { step: "searching" }
-  | { step: "done"; cards: ScanMatch[]; exact: boolean; read: string }
+  | { step: "done"; cards: ScanMatch[]; exact: boolean; read: string; language: Language }
   | { step: "error"; message: string };
 
 // Draws the photo on a canvas, scaled so the small print is large enough to read.
@@ -30,28 +30,55 @@ async function prepare(file: File, top = 0, height = 1, maxSide = 1800, maxZoom 
   return canvas;
 }
 
-async function readText(file: File, onProgress: (p: number) => void) {
-  const { createWorker } = await import("tesseract.js");
-  let pass = 0;
-  // Served from our own site (see scripts/copy-ocr.mjs).
-  const worker = await createWorker("eng", 1, {
-    workerPath: "/ocr/worker.min.js",
-    corePath: "/ocr",
-    langPath: "/ocr",
-    logger: (m) => {
-      if (m.status === "recognizing text") onProgress((pass + m.progress) / 2);
-    },
-  });
-  try {
-    const whole = await worker.recognize(await prepare(file, 0, 1, 2000, 2));
-    pass = 1;
-    // The set code and number are small print near the bottom: read the lower half enlarged.
-    const bottom = await worker.recognize(await prepare(file, 0.45, 0.55, 2600, 2));
-    return `${whole.data.text}\n${bottom.data.text}`;
-  } finally {
-    await worker.terminate();
-  }
+type OcrWorker = Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>;
+
+// Text recognition takes a few seconds to load, so it starts as soon as the scan
+// page opens and is reused for every scan.
+let ocr: Promise<OcrWorker> | null = null;
+let onOcrProgress: (p: number) => void = () => {};
+function ocrWorker() {
+  ocr ??= import("tesseract.js").then(({ createWorker }) =>
+    // Served from our own site (see scripts/copy-ocr.mjs).
+    createWorker("eng", 1, {
+      workerPath: "/ocr/worker.min.js",
+      corePath: "/ocr",
+      langPath: "/ocr",
+      logger: (m) => {
+        if (m.status === "recognizing text") onOcrProgress(m.progress);
+      },
+    }),
+  );
+  ocr.catch(() => (ocr = null));
+  return ocr;
 }
+
+// Reads parts of the photo. Each part is [top, height, maxSide, maxZoom].
+async function readParts(file: File, parts: [number, number, number, number][], onProgress: (p: number) => void) {
+  const worker = await ocrWorker();
+  const texts: string[] = [];
+  for (const [i, [top, height, maxSide, maxZoom]] of parts.entries()) {
+    onOcrProgress = (p) => onProgress((i + p) / parts.length);
+    texts.push((await worker.recognize(await prepare(file, top, height, maxSide, maxZoom))).data.text);
+  }
+  onOcrProgress = () => {};
+  return texts.join("\n");
+}
+
+// Quick look first: only the name at the top and the small print at the bottom
+// ("PAL DE 123/193"), which is all that is needed for most cards.
+const QUICK: [number, number, number, number][] = [
+  [0.8, 0.2, 1800, 2.5],
+  [0, 0.16, 1400, 1.5],
+];
+// If that isn't enough: the whole card, and the lower half enlarged.
+const FULL: [number, number, number, number][] = [
+  [0, 1, 2000, 2],
+  [0.45, 0.55, 2600, 2],
+];
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  EN: "Engels", NL: "Nederlands", DE: "Duits", FR: "Frans", IT: "Italiaans", ES: "Spaans", PT: "Portugees", JP: "Japans",
+};
 
 // The card outline shown over the live camera, as a share of the frame.
 const GUIDE_WIDTH = 0.78;
@@ -97,6 +124,7 @@ export default function Scanner() {
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
+    ocrWorker().catch(() => {});
     return () => {
       mounted.current = false;
       stopCamera();
@@ -147,31 +175,42 @@ export default function Scanner() {
     if (blob) onPhoto(new File([blob], "kaart.jpg", { type: "image/jpeg" }));
   }
 
-  async function lookup(request: Promise<Response>) {
+  // `onlyIfExact`: a first try, shown only when it found the one card.
+  async function lookup(request: Promise<Response>, onlyIfExact = false) {
     setPhase({ step: "searching" });
     try {
       const res = await request;
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read });
+      if (onlyIfExact && !data.exact) return false;
+      const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
+      setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
+      return data.exact as boolean;
     } catch (e) {
+      if (onlyIfExact) return false;
       setPhase({ step: "error", message: e instanceof Error && e.message ? e.message : "Er ging iets mis. Probeer het opnieuw." });
+      return false;
     }
   }
+
+  const post = (text: string) =>
+    fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
 
   async function onPhoto(file: File | undefined) {
     if (!file) return;
     if (photo) URL.revokeObjectURL(photo);
     setPhoto(URL.createObjectURL(file));
+    // Progress: the quick look is the first half of the bar, the full read the second.
     setPhase({ step: "reading", progress: 0 });
-    let text: string;
     try {
-      text = await readText(file, (p) => setPhase({ step: "reading", progress: p }));
+      const quick = await readParts(file, QUICK, (p) => setPhase({ step: "reading", progress: p / 2 }));
+      if (await lookup(post(quick), true)) return;
+      setPhase({ step: "reading", progress: 0.5 });
+      const full = await readParts(file, FULL, (p) => setPhase({ step: "reading", progress: 0.5 + p / 2 }));
+      await lookup(post(`${quick}\n${full}`));
     } catch {
       setPhase({ step: "error", message: "De foto kon niet gelezen worden. Probeer het opnieuw of typ de code." });
-      return;
     }
-    await lookup(fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }));
   }
 
   function onTyped(e: React.FormEvent) {
@@ -243,7 +282,8 @@ export default function Scanner() {
           </p>
           {phase.cards.map((c) => {
             const japanese = parseRef(c.ref).region === "ja";
-            const owned = entries.find((e) => e.key === entryKey(c.ref, "normal", japanese ? "JP" : "EN"));
+            const language: Language = japanese ? "JP" : phase.language;
+            const owned = entries.find((e) => e.key === entryKey(c.ref, "normal", language));
             return (
               <div key={c.ref} className="scan-match">
                 <Link href={cardHref(c.ref)} className="tile-img scan-thumb">
@@ -251,14 +291,14 @@ export default function Scanner() {
                 </Link>
                 <div className="scan-info">
                   <strong>{c.name}</strong>
-                  <span className="tile-meta">{c.code}{japanese ? " · Japans" : ""}</span>
+                  <span className="tile-meta">{c.code} · {LANGUAGE_NAMES[language]}</span>
                   {owned ? (
                     <span className="scan-added">
                       ✓ {owned.quantity}× in je collectie · <Link href={cardHref(c.ref)}>taal of versie wijzigen</Link>
                     </span>
                   ) : null}
                 </div>
-                <button type="button" className="btn btn-primary scan-add" onClick={() => add(c.ref, "normal", japanese ? "JP" : "EN")}>
+                <button type="button" className="btn btn-primary scan-add" onClick={() => add(c.ref, "normal", language)}>
                   {owned ? "+1" : "Toevoegen"}
                 </button>
               </div>
