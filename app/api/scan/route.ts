@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cardImage, getCard, getSet, type CardResume, type Region } from "@/lib/tcgdex";
-import { findByCode, search, type Results } from "@/lib/search";
+import { findByCode, findInSet, search, type Results } from "@/lib/search";
+import { readCode, setForCode, totalFits } from "@/lib/code-match";
 import { cardCode, setIdFromCardId } from "@/lib/set-code";
 import { matchCards, type CardCandidate } from "@/lib/card-match";
 import { toRef } from "@/lib/card-ref";
@@ -69,8 +70,23 @@ export async function POST(request: Request) {
   const candidates = matchCards(String(text ?? ""), hints.number, hints.pokemon);
 
   try {
+    // A full code with "/094": checked against the sets that exist (see lib/code-match.ts).
+    const code = readCode(String(text ?? ""));
+    const setId = code && setForCode(code);
+    if (code && setId) {
+      const cards = toMatches(await findInSet(setId, code.number));
+      const language = cardLanguage(code.language ?? hints.language, candidates, cards.map((c) => c.ref));
+      if (cards.length) return NextResponse.json({ cards, exact: cards.length === 1, read: cards[0].code, language });
+    }
+
     for (const code of hints.codes.slice(0, 4)) {
-      const cards = toMatches(await findByCode(code));
+      // A set whose size doesn't match the "/094" that was read is a misread.
+      const found = await findByCode(code);
+      const cards = toMatches({
+        en: found.en.filter((c) => !hints.total || totalFits(setIdFromCardId(c.id), hints.total)),
+        // A printed language code ("EN", "DE") is only on international cards.
+        ja: hints.language ? [] : found.ja,
+      });
       const language = cardLanguage(hints.language, candidates, cards.map((c) => c.ref));
       if (cards.length) return NextResponse.json({ cards, exact: true, read: code, language });
     }
