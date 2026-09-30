@@ -1,7 +1,8 @@
 import Link from "next/link";
 import AddToCollection from "@/components/AddToCollection";
 import CardImg from "@/components/CardImg";
-import { cardImage, type Card, type Region } from "@/lib/tcgdex";
+import { cardImage, getSet, type Card, type Region } from "@/lib/tcgdex";
+import { cardmarketProductUrl } from "@/lib/cardmarket-url";
 import { setHref, toRef } from "@/lib/card-ref";
 import { englishNameForDex } from "@/lib/names";
 import { setCode } from "@/lib/set-code";
@@ -31,8 +32,10 @@ function PriceBlock({ title, p }: { title: string; p: PriceInfo }) {
   );
 }
 
-export default function CardDetail({ card, region }: { card: Card; region: Region }) {
+export default async function CardDetail({ card, region }: { card: Card; region: Region }) {
   const jp = region === "ja";
+  // Japanese cards have their own Cardmarket pages we can't derive yet: those use search.
+  const productUrl = jp ? null : cardmarketProductUrl(card, await getSet(card.set.id).catch(() => null));
   const code = `${jp ? card.set.id : setCode(card.set)} ${card.localId}`;
   const englishName = jp ? englishNameForDex(card.dexId?.[0]) : null;
   const cm = card.pricing?.cardmarket;
@@ -73,7 +76,7 @@ export default function CardDetail({ card, region }: { card: Card; region: Regio
       )}
 
       <AddToCollection cardRef={toRef(region, card.id)} japanese={jp} hasReverse={hasReverse || !!card.variants?.reverse} />
-      <a href={cardmarketSearchUrl(englishName ?? card.name)} className="btn btn-block" target="_blank" rel="noopener noreferrer">
+      <a href={productUrl ?? cardmarketSearchUrl(englishName ?? card.name)} className="btn btn-block" target="_blank" rel="noopener noreferrer">
         Bekijk op Cardmarket
       </a>
     </>
