@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import CardImg from "./CardImg";
-import { LANGUAGES, entryKey, useCollection, type Language } from "@/lib/collection";
+import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
 
@@ -70,11 +70,11 @@ const QUICK: [number, number, number, number][] = [
   [0.8, 0.2, 1800, 2.5],
   [0, 0.16, 1400, 1.5],
 ];
-// If that isn't enough: the whole card, and the lower half enlarged.
-const FULL: [number, number, number, number][] = [
-  [0, 1, 2000, 2],
-  [0.45, 0.55, 2600, 2],
-];
+// If that isn't enough (the card was small in the photo, or an older card):
+// the whole card, and only then the lower half enlarged. Each step stops as soon
+// as the card is found.
+const STEPS: [number, number, number, number][][] = [QUICK, [[0, 1, 2000, 2]], [[0.45, 0.55, 2600, 2]]];
+const PASSES = STEPS.flat().length;
 
 const LANGUAGE_NAMES: Record<string, string> = {
   EN: "Engels", NL: "Nederlands", DE: "Duits", FR: "Frans", IT: "Italiaans", ES: "Spaans", PT: "Portugees", JP: "Japans",
@@ -112,6 +112,8 @@ export default function Scanner() {
   const [phase, setPhase] = useState<Phase>({ step: "idle" });
   const [typed, setTyped] = useState("");
   const { entries, add } = useCollection();
+  const [condition, setCondition] = useState<Condition>("NM");
+  useEffect(() => setCondition(lastCondition()), []);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [live, setLive] = useState(false);
@@ -200,14 +202,18 @@ export default function Scanner() {
     if (!file) return;
     if (photo) URL.revokeObjectURL(photo);
     setPhoto(URL.createObjectURL(file));
-    // Progress: the quick look is the first half of the bar, the full read the second.
     setPhase({ step: "reading", progress: 0 });
     try {
-      const quick = await readParts(file, QUICK, (p) => setPhase({ step: "reading", progress: p / 2 }));
-      if (await lookup(post(quick), true)) return;
-      setPhase({ step: "reading", progress: 0.5 });
-      const full = await readParts(file, FULL, (p) => setPhase({ step: "reading", progress: 0.5 + p / 2 }));
-      await lookup(post(`${quick}\n${full}`));
+      let text = "";
+      let done = 0;
+      for (const [i, parts] of STEPS.entries()) {
+        const before = done;
+        text += "\n" + (await readParts(file, parts, (p) => setPhase({ step: "reading", progress: (before + p * parts.length) / PASSES })));
+        done += parts.length;
+        const last = i === STEPS.length - 1;
+        if (await lookup(post(text), !last)) return;
+        if (!last) setPhase({ step: "reading", progress: done / PASSES });
+      }
     } catch {
       setPhase({ step: "error", message: "De foto kon niet gelezen worden. Probeer het opnieuw of typ de code." });
     }
@@ -232,7 +238,7 @@ export default function Scanner() {
           <>
             <video ref={video} className="scan-video" playsInline muted />
             <div className="scan-guide" aria-hidden="true" />
-            <span className="scan-guide-text">Houd de kaart binnen het kader</span>
+            <span className="scan-guide-text">Vul het kader met de kaart</span>
           </>
         ) : photo ? <img src={photo} alt="Jouw foto" /> : (
           <div className="scan-empty">
@@ -280,10 +286,20 @@ export default function Scanner() {
               ? "Geen kaart herkend. Maak een scherpere foto van dichtbij, of typ hieronder de code die linksonder op de kaart staat (bv. 30C 100)."
               : phase.exact ? "Is dit je kaart?" : "Welke is het? Staat hij er niet tussen, typ dan de code hieronder."}
           </p>
+          {phase.cards.length > 0 && (
+            <label className="scan-condition">
+              Staat van de kaart
+              <select value={condition} onChange={(e) => setCondition(e.target.value as Condition)}>
+                {CONDITIONS.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           {phase.cards.map((c) => {
             const japanese = parseRef(c.ref).region === "ja";
             const language: Language = japanese ? "JP" : phase.language;
-            const owned = entries.find((e) => e.key === entryKey(c.ref, "normal", language));
+            const owned = entries.find((e) => e.key === entryKey(c.ref, "normal", language, condition));
             return (
               <div key={c.ref} className="scan-match">
                 <Link href={cardHref(c.ref)} className="tile-img scan-thumb">
@@ -291,14 +307,14 @@ export default function Scanner() {
                 </Link>
                 <div className="scan-info">
                   <strong>{c.name}</strong>
-                  <span className="tile-meta">{c.code} · {LANGUAGE_NAMES[language]}</span>
+                  <span className="tile-meta">{c.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
                   {owned ? (
                     <span className="scan-added">
-                      ✓ {owned.quantity}× in je collectie · <Link href={cardHref(c.ref)}>taal of versie wijzigen</Link>
+                      ✓ {owned.quantity}× in je collectie · <Link href={cardHref(c.ref)}>taal, versie of staat wijzigen</Link>
                     </span>
                   ) : null}
                 </div>
-                <button type="button" className="btn btn-primary scan-add" onClick={() => add(c.ref, "normal", language)}>
+                <button type="button" className="btn btn-primary scan-add" onClick={() => add(c.ref, "normal", language, condition)}>
                   {owned ? "+1" : "Toevoegen"}
                 </button>
               </div>

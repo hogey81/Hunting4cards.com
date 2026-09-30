@@ -277,3 +277,6 @@ a.chip { display: inline-flex; align-items: center; }
   position: absolute; left: 0; right: 0; top: 12px; text-align: center; color: #fff; font-size: 13px; font-weight: 700;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
+.condition-hint { margin: 8px 2px 0; font-size: 13px; color: var(--muted); }
+.scan-condition { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 14px; }
+.scan-condition select { font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: inherit; }

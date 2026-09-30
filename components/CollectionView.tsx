@@ -77,7 +77,7 @@ export default function CollectionView({ initialFilter }: { initialFilter: Filte
                 </div>
                 <div className="tile-name">{card?.name ?? "…"}</div>
                 <div className="tile-meta">
-                  {card ? cardCode(card.id, card.localId) : cardCode(entry.cardId)} · {entry.language}
+                  {card ? cardCode(card.id, card.localId) : cardCode(entry.cardId)} · {entry.language} · {entry.condition}
                   {entry.variant === "reverse" ? " · reverse" : ""}
                 </div>
                 <div className="tile-price">
