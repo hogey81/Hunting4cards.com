@@ -156,7 +156,9 @@ export default function Scanner() {
   const [debug, setDebug] = useState("");
   const [lastCode, setLastCode] = useState("");
   const paused = useRef(false);
+  const closedAt = useRef(0);
   const closePopup = () => {
+    closedAt.current = Date.now();
     setPopup(null);
     paused.current = false;
   };
@@ -265,6 +267,7 @@ export default function Scanner() {
     if (!live) return;
     let active = true;
     let last = "";
+    let lastSeenAt = 0;
     // The numbers read in the last frames: each frame is cleaned up differently and
     // often only one of those reads the code, so "read twice" counts recent frames,
     // not only the one just before.
@@ -300,7 +303,19 @@ export default function Scanner() {
         recent.push(numbers);
         if (recent.length > 9) recent.shift();
         const steady = !!code && recent.filter((n) => n === numbers).length >= 2;
-        // Nothing read, the card just shown (still in view), or this exact text already looked up.
+        // The card just shown is skipped while it stays in view, so it doesn't pop up
+        // again at once; scanned again after it was away a moment, or a few seconds
+        // later, it is shown again (the same card twice, or a second copy).
+        if (last && numbers === last) {
+          const now = Date.now();
+          // (While the card was shown nothing was read: count from when it was closed.)
+          const away = now - Math.max(lastSeenAt, closedAt.current) > 1500;
+          lastSeenAt = now;
+          if (!away && now - closedAt.current < 4000) continue;
+          last = "";
+          posted = "";
+        }
+        // Nothing read, or this exact text already looked up.
         if (!code || numbers === last || (code === posted && !steady)) continue;
         posted = code;
         // The whole line: the set code may stand apart from the number ("G SVIEN 047/198").
@@ -316,6 +331,7 @@ export default function Scanner() {
           continue;
         }
         last = numbers;
+        lastSeenAt = Date.now();
         showCard(data, exact);
       }
     })();
@@ -429,21 +445,21 @@ export default function Scanner() {
                         <span className="scan-popup-found">{popupSure ? "✓ Gevonden" : "Is dit je kaart?"}</span>
                         <strong>{popup.name}</strong>
                         <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]}</span>
-                        <div className="scan-popup-pick" role="group" aria-label="Staat van de kaart">
-                          {CONDITIONS.map((c) => (
-                            <button key={c.code} type="button" title={c.name} aria-pressed={c.code === condition} className={c.code === condition ? "chip on" : "chip"} onClick={() => setCondition(c.code)}>
-                              {c.code}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="scan-popup-pick" role="group" aria-label="Versie">
-                          {(Object.keys(VARIANT_NAMES) as Variant[]).map((v) => (
-                            <button key={v} type="button" aria-pressed={v === variant} className={v === variant ? "chip on" : "chip"} onClick={() => setVariant(v)}>
-                              {VARIANT_NAMES[v]}
-                            </button>
-                          ))}
-                        </div>
                       </div>
+                    </div>
+                    <div className="scan-popup-pick seg-cond" role="group" aria-label="Staat van de kaart">
+                      {CONDITIONS.map((c) => (
+                        <button key={c.code} type="button" title={c.name} aria-pressed={c.code === condition} className={c.code === condition ? "chip on" : "chip"} onClick={() => setCondition(c.code)}>
+                          {c.code}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="scan-popup-pick seg-ver" role="group" aria-label="Versie">
+                      {(Object.keys(VARIANT_NAMES) as Variant[]).map((v) => (
+                        <button key={v} type="button" aria-pressed={v === variant} className={v === variant ? "chip on" : "chip"} onClick={() => setVariant(v)}>
+                          {VARIANT_NAMES[v]}
+                        </button>
+                      ))}
                     </div>
                     {!popupSure && choices.length > 1 && (
                       <div className="scan-popup-choices">

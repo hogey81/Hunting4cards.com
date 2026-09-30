@@ -299,15 +299,15 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-seen small { display: block; font-size: 10px; font-weight: 600; opacity: 0.75; }
 /* Fixed in the middle of the screen, above the tab bar: at the bottom of the camera
    frame it could end up behind the tab bar or below the screen. */
-.scan-popup-backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.scan-popup-backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 12px; overflow-y: auto; }
 .scan-popup {
   width: 100%; max-width: 420px; background: var(--surface); color: var(--ink);
   border-radius: 18px; padding: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 10px;
-  animation: pop-in 0.18s ease-out;
+  animation: pop-in 0.12s ease-out;
 }
 @keyframes pop-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .scan-popup-card { display: flex; gap: 12px; align-items: center; }
-.scan-popup-card .tile-img { width: 96px; flex-shrink: 0; }
+.scan-popup-card .tile-img { width: 84px; flex-shrink: 0; }
 .scan-popup-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .scan-popup-info strong { font-size: 18px; }
 .scan-popup-found { color: var(--up); font-weight: 800; font-size: 13px; }
@@ -316,5 +316,9 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-popup-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .scan-popup-choices .chip { font: inherit; font-weight: 700; color: var(--ink); background: var(--bg, #f4f1ea); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
 .seg-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.scan-popup-pick { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.scan-popup-pick .chip { min-height: 30px; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+/* Big buttons: picked with a thumb, often while holding a card. */
+.scan-popup-pick { display: grid; gap: 8px; }
+.scan-popup-pick.seg-cond { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.scan-popup-pick.seg-ver { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scan-popup-pick .chip { min-height: 56px; padding: 0 6px; border-radius: 14px; font-size: 20px; font-weight: 800; }
+.scan-popup-pick.seg-ver .chip { font-size: 16px; }
