@@ -6,7 +6,7 @@ import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
-import { focusAt, openBackCamera, setCameraZoom, sharpness, tuneCamera } from "@/lib/camera";
+import { focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
 
 type Phase =
   | { step: "idle" }
@@ -81,33 +81,39 @@ const LANGUAGE_NAMES: Record<string, string> = {
   EN: "Engels", NL: "Nederlands", DE: "Duits", FR: "Frans", IT: "Italiaans", ES: "Spaans", PT: "Portugees", JP: "Japans",
 };
 
-// The card outline shown over the live camera, as a share of the frame.
-const GUIDE_WIDTH = 0.78;
-const CARD_RATIO = 88 / 63;
+// The live camera only reads the code at the bottom left of the card
+// ("PFL EN 120/094"): a short line of plain text on a quiet background, which
+// reads far more reliably than the whole card. The outline is a wide strip
+// (as a share of the frame; height / width).
+const GUIDE_WIDTH = 0.8;
+const GUIDE_RATIO = 5 / 16;
 
-// Cuts the part of the video frame inside the card outline (the video is shown
+// Cuts the part of the video frame inside the outline (the video is shown
 // with object-fit: cover, so the visible part is centred). `screenZoom`: how much
 // the video is enlarged on screen when the camera can't zoom by itself.
-function grabCard(video: HTMLVideoElement, screenZoom: number) {
+function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   // The size before the on-screen enlargement (a CSS transform, which the bounding box includes).
   const outer = video.getBoundingClientRect();
   const box = { width: outer.width / screenZoom, height: outer.height / screenZoom };
   const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight) * screenZoom;
-  let gw = box.width * GUIDE_WIDTH;
-  let gh = gw * CARD_RATIO;
-  if (gh > box.height * 0.92) {
-    gh = box.height * 0.92;
-    gw = gh / CARD_RATIO;
-  }
-  // A small margin, so a card held slightly off-centre is still complete.
-  const w = Math.min(video.videoWidth, (gw * 1.08) / scale);
-  const h = Math.min(video.videoHeight, (gh * 1.06) / scale);
+  const gw = box.width * GUIDE_WIDTH;
+  const gh = gw * GUIDE_RATIO;
+  // A margin, so a code held slightly off-centre is still complete.
+  const w = Math.min(video.videoWidth, (gw * 1.1) / scale);
+  const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(w);
-  canvas.height = Math.round(h);
-  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, w, h);
+  // Enlarged: small print reads better when the letters are big.
+  const up = Math.min(3, 1400 / w);
+  canvas.width = Math.round(w * up);
+  canvas.height = Math.round(h * up);
+  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
+
+// Text that could be a card code: "120/094", or "SVP EN 085" on promos.
+const looksLikeCode = (text: string) => /\d{1,3}\s*[/|]\s*\d{2,3}|\b[A-Z0-9]{2,4}\s+[A-Z]{2}\s+\d{1,3}\b/.test(text);
+// Reads with a number that found several cards but not one: after this many, show them.
+const SHOW_CANDIDATES_AFTER = 4;
 
 const ZOOMS = [1, 1.5, 2, 3];
 // Zoomed in, the phone is held further away: most phones can't focus closer than about 10 cm.
@@ -127,7 +133,7 @@ export default function Scanner() {
   const [live, setLive] = useState(false);
   const [zoom, setZoom] = useState(START_ZOOM);
   const [hardwareZoom, setHardwareZoom] = useState(false);
-  const [grabbing, setGrabbing] = useState(false);
+  const [seen, setSeen] = useState("");
   const screenZoom = hardwareZoom ? 1 : zoom;
 
   function stopCamera() {
@@ -196,25 +202,42 @@ export default function Scanner() {
     focusAt(track, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   }
 
-  // Takes a few frames in a row and keeps the sharpest: a hand that moves a
-  // little, or focus that is still settling, blurs some of them.
-  async function capture() {
-    const v = video.current;
-    if (!v?.videoWidth || grabbing) return;
-    setGrabbing(true);
-    let best: HTMLCanvasElement | null = null;
-    let bestScore = -1;
-    for (let i = 0; i < 6; i++) {
-      if (i) await new Promise((r) => setTimeout(r, 90));
-      const frame = grabCard(v, screenZoom);
-      const score = sharpness(frame);
-      if (score > bestScore) [best, bestScore] = [frame, score];
-    }
-    setGrabbing(false);
-    stopCamera();
-    const blob = await new Promise<Blob | null>((resolve) => best!.toBlob(resolve, "image/jpeg", 0.92));
-    if (blob) onPhoto(new File([blob], "kaart.jpg", { type: "image/jpeg" }));
-  }
+  // While the camera runs, keep reading the strip until a code finds the card:
+  // no button to press, and a blurry frame just means the next one is tried.
+  const zoomRef = useRef(screenZoom);
+  zoomRef.current = screenZoom;
+  useEffect(() => {
+    if (!live) return;
+    let active = true;
+    let tries = 0;
+    (async () => {
+      const worker = await ocrWorker().catch(() => null);
+      while (active && worker) {
+        await new Promise((r) => setTimeout(r, 250));
+        const v = video.current;
+        if (!active || !v?.videoWidth) continue;
+        const text = (await worker.recognize(grabGuide(v, zoomRef.current))).data.text;
+        if (!active) return;
+        const line = text.replace(/\s+/g, " ").trim();
+        setSeen(looksLikeCode(line) ? line : "");
+        if (!looksLikeCode(line)) continue;
+        const res = await post(line).catch(() => null);
+        const data = res?.ok ? await res.json() : null;
+        if (!active || !data?.cards?.length) continue;
+        if (!data.exact && ++tries < SHOW_CANDIDATES_AFTER) continue;
+        active = false;
+        stopCamera();
+        setPhoto(null);
+        const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
+        setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
+      }
+    })();
+    return () => {
+      active = false;
+      setSeen("");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
 
   // `onlyIfExact`: a first try, shown only when it found the one card.
   async function lookup(request: Promise<Response>, onlyIfExact = false) {
@@ -283,8 +306,13 @@ export default function Scanner() {
               muted
               onClick={tapToFocus}
             />
-            <div className="scan-guide" aria-hidden="true" />
-            <span className="scan-guide-text">Vul het kader · tik om scherp te stellen</span>
+            <div className="scan-guide code" aria-hidden="true" />
+            <span className="scan-guide-text">
+              Richt het kader op de code linksonder op de kaart
+              <br />
+              bv. PFL 120/094 · tik om scherp te stellen
+            </span>
+            <span className="scan-seen" role="status">{seen ? `Gelezen: ${seen.slice(0, 40)}` : "Zoeken naar de code…"}</span>
             <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
               {zoom}×
             </button>
@@ -310,8 +338,10 @@ export default function Scanner() {
       <div className="scan-actions">
         {live ? (
           <>
-            <button type="button" className="btn btn-primary" onClick={capture} disabled={grabbing}>Scan kaart</button>
             <button type="button" className="btn" onClick={stopCamera}>Stoppen</button>
+            <button type="button" className="btn" onClick={() => { stopCamera(); gallery.current?.click(); }}>
+              Kies uit galerij
+            </button>
           </>
         ) : (
           <>

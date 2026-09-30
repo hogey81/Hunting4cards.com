@@ -1,5 +1,5 @@
 // Helpers for the live scanner camera: pick a back camera that can focus, keep it
-// focusing, zoom in, and choose the sharpest of a few frames.
+// focusing and zoom in.
 // Most of these camera settings only exist in Chrome on Android; elsewhere they
 // are skipped and the camera works as before.
 
@@ -67,32 +67,4 @@ export async function focusAt(track: MediaStreamTrack, x: number, y: number) {
   if (c.pointsOfInterest) await apply(track, { pointsOfInterest: [{ x, y }] });
   if (c.focusMode.includes("single-shot")) await apply(track, { focusMode: "single-shot" });
   setTimeout(() => apply(track, { focusMode: "continuous" }), 1500);
-}
-
-// How sharp a picture is: the spread of the edge strength (variance of the
-// Laplacian) on a small grey copy. Blurry pictures have weak edges.
-export function sharpness(source: HTMLCanvasElement) {
-  const w = 240;
-  const h = Math.max(1, Math.round((source.height / source.width) * w));
-  const small = document.createElement("canvas");
-  small.width = w;
-  small.height = h;
-  const ctx = small.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(source, 0, 0, w, h);
-  const px = ctx.getImageData(0, 0, w, h).data;
-  const grey = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) grey[i] = px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11;
-  let sum = 0;
-  let sumSq = 0;
-  let n = 0;
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      const lap = grey[i - 1] + grey[i + 1] + grey[i - w] + grey[i + w] - 4 * grey[i];
-      sum += lap;
-      sumSq += lap * lap;
-      n++;
-    }
-  }
-  return n ? sumSq / n - (sum / n) ** 2 : 0;
 }
