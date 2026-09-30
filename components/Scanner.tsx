@@ -56,7 +56,8 @@ function ocrWorker() {
 // Reads parts of the photo. Each part is [top, height, maxSide, maxZoom].
 async function readParts(file: File, parts: [number, number, number, number][], onProgress: (p: number) => void) {
   const worker = await ocrWorker();
-  await worker.setParameters({ tessedit_char_whitelist: "" }); // the live camera limits the letters; a photo needs all
+  // The live camera limits the letters and reads one block; a photo needs all letters and its layout.
+  await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" as never });
   const texts: string[] = [];
   for (const [i, [top, height, maxSide, maxZoom]] of parts.entries()) {
     onOcrProgress = (p) => onProgress((i + p) / parts.length);
@@ -103,7 +104,8 @@ function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
   // Enlarged: small print reads better when the letters are big.
-  const up = Math.min(3, 1400 / w);
+  // Not larger than needed: a smaller picture is read much faster.
+  const up = Math.min(2.5, 1000 / w);
   canvas.width = Math.round(w * up);
   canvas.height = Math.round(h * up);
   canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
@@ -144,6 +146,13 @@ export default function Scanner() {
   const [hardwareZoom, setHardwareZoom] = useState(false);
   const [seen, setSeen] = useState("");
   const [found, setFound] = useState("");
+  // The card just found, shown in front of the camera; reading waits while it is open.
+  const [popup, setPopup] = useState<ScanMatch | null>(null);
+  const paused = useRef(false);
+  const closePopup = () => {
+    setPopup(null);
+    paused.current = false;
+  };
   const results = useRef<HTMLElement>(null);
   const [cameraInfo, setCameraInfo] = useState("");
   const screenZoom = hardwareZoom ? 1 : zoom;
@@ -226,14 +235,16 @@ export default function Scanner() {
     let active = true;
     let last = "";
     let previous = "";
+    let posted = "";
     let frame = 0;
     (async () => {
       const worker = await ocrWorker().catch(() => null);
-      await worker?.setParameters({ tessedit_char_whitelist: CODE_CHARS });
+      // One block of text, only code characters: faster, and fewer wrong guesses.
+      await worker?.setParameters({ tessedit_char_whitelist: CODE_CHARS, tessedit_pageseg_mode: "6" as never });
       while (active && worker) {
-        await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 40));
         const v = video.current;
-        if (!active || !v?.videoWidth) continue;
+        if (!active || !v?.videoWidth || paused.current) continue;
         const how = CLEANUPS[frame++ % CLEANUPS.length];
         const text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
         if (!active) return;
@@ -243,25 +254,29 @@ export default function Scanner() {
         const numbers = code ? numbersOf(code) : "";
         const steady = !!code && numbers === previous;
         previous = numbers;
-        // Not yet read twice, or the same card as before (still in view): nothing to look up.
-        if (!steady || numbers === last) continue;
+        // Nothing read, the card just shown (still in view), or this exact text already looked up.
+        if (!code || numbers === last || (code === posted && !steady)) continue;
+        posted = code;
         const res = await post(code).catch(() => null);
         const data = res?.ok ? await res.json() : null;
-        // Only a code that finds exactly one card counts; otherwise keep looking.
-        if (!active || !data?.exact || !data.cards?.length) continue;
+        // Only a code that finds exactly one card counts. Read once is enough when
+        // it matched the printed set code exactly; otherwise it must be read twice.
+        if (!active || !data?.exact || !data.cards?.length || !(data.sure || steady)) continue;
         last = numbers;
-        // Show the card at once, and keep the camera running for the next card.
+        // Show the card at once, in front of the camera.
         setPhoto(null);
         const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
         setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
         navigator.vibrate?.(60);
         setFound(data.cards[0].name);
-        setTimeout(() => results.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+        paused.current = true;
+        setPopup(data.cards[0]);
       }
     })();
     return () => {
       active = false;
       setSeen("");
+      closePopup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
@@ -353,6 +368,29 @@ export default function Scanner() {
                   : "Zoeken naar de code onderaan de kaart…"}
               {cameraInfo && <small>{cameraInfo}</small>}
             </span>
+            {popup && (() => {
+              const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
+              return (
+                <div className="scan-popup" role="dialog" aria-label="Kaart gevonden">
+                  <div className="scan-popup-card">
+                    <div className="tile-img">
+                      <CardImg src={popup.image} name={popup.name} code={popup.code} />
+                    </div>
+                    <div className="scan-popup-info">
+                      <span className="scan-popup-found">✓ Gevonden</span>
+                      <strong>{popup.name}</strong>
+                      <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
+                    </div>
+                  </div>
+                  <div className="scan-popup-actions">
+                    <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, "normal", language, condition); closePopup(); }}>
+                      Toevoegen
+                    </button>
+                    <button type="button" className="btn" onClick={closePopup}>Volgende kaart</button>
+                  </div>
+                </div>
+              );
+            })()}
             <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
               {zoom}×
             </button>

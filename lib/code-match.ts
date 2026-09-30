@@ -37,15 +37,21 @@ function distance(a: string, b: string) {
 
 // The set this code belongs to, or null when that isn't clear.
 export function setForCode(code: ReadCode): string | null {
+  return matchSet(code)?.id ?? null;
+}
+
+// Also tells whether the letters were read exactly as printed: then one read is
+// enough to trust it.
+export function matchSet(code: ReadCode): { id: string; sure: boolean } | null {
   const sameSize = Object.entries(SETS).filter(([, [count]]) => count === code.total);
   if (!sameSize.length) return null;
-  if (!code.letters) return sameSize.length === 1 ? sameSize[0][0] : null;
+  if (!code.letters) return sameSize.length === 1 ? { id: sameSize[0][0], sure: false } : null;
   const scored = sameSize
     .map(([id, [, codes]]) => ({ id, d: Math.min(...codes.map((c) => distance(code.letters!, c))) }))
     .sort((a, b) => a.d - b.d);
   const [best, next] = scored;
   // Close enough, and clearly closer than any other set of the same size.
-  return best.d <= 1 && (!next || next.d > best.d) ? best.id : null;
+  return best.d <= 1 && (!next || next.d > best.d) ? { id: best.id, sure: best.d === 0 } : null;
 }
 
 // Whether this set has that many cards after the slash. Unknown sets pass.

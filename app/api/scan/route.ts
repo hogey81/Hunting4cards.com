@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cardImage, getCard, getSet, type CardResume, type Region } from "@/lib/tcgdex";
 import { findByCode, findInSet, search, type Results } from "@/lib/search";
-import { readCode, setForCode, totalFits } from "@/lib/code-match";
+import { matchSet, readCode, totalFits } from "@/lib/code-match";
 import { cardCode, setIdFromCardId } from "@/lib/set-code";
 import { matchCards, type CardCandidate } from "@/lib/card-match";
 import { toRef } from "@/lib/card-ref";
@@ -72,11 +72,13 @@ export async function POST(request: Request) {
   try {
     // A full code with "/094": checked against the sets that exist (see lib/code-match.ts).
     const code = readCode(String(text ?? ""));
-    const setId = code && setForCode(code);
-    if (code && setId) {
-      const cards = toMatches(await findInSet(setId, code.number));
+    const set = code && matchSet(code);
+    if (code && set) {
+      const cards = toMatches(await findInSet(set.id, code.number));
       const language = cardLanguage(code.language ?? hints.language, candidates, cards.map((c) => c.ref));
-      if (cards.length) return NextResponse.json({ cards, exact: cards.length === 1, read: cards[0].code, language });
+      // `sure`: code letters, number and set size all as printed, so the camera needn't read it again.
+      if (cards.length)
+        return NextResponse.json({ cards, exact: cards.length === 1, sure: set.sure, read: cards[0].code, language });
     }
 
     for (const code of hints.codes.slice(0, 4)) {
