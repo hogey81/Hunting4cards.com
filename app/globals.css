@@ -130,8 +130,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .set-logo { align-self: center; width: auto; height: auto; max-width: min(100%, 320px); max-height: 96px; object-fit: contain; }
 
 /* Card detail */
-.card-hero { background: var(--red); border-radius: 22px; padding: 24px; display: flex; justify-content: center; }
-.card-hero img { width: 60%; max-width: 260px; border-radius: 12px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
+.card-hero { position: relative; background: var(--red); border-radius: 22px; padding: 24px; display: flex; justify-content: center; align-items: center; }
+.card-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92); color: var(--ink); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.card-nav.prev { left: 12px; }
+.card-nav.next { right: 12px; }
+.card-nav:active { transform: translateY(-50%) scale(0.94); }
+/* Fixed card shape, so the frame keeps its size while the next picture loads. */
+.card-hero img { width: 60%; max-width: 260px; aspect-ratio: 63 / 88; object-fit: contain; border-radius: 12px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
 .card-head { display: flex; flex-direction: column; gap: 4px; }
 .card-head h1 { font-size: 26px; }
 .price-card { background: var(--surface); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
