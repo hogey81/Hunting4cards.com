@@ -56,8 +56,7 @@ function ocrWorker() {
 // Reads parts of the photo. Each part is [top, height, maxSide, maxZoom].
 async function readParts(file: File, parts: [number, number, number, number][], onProgress: (p: number) => void) {
   const worker = await ocrWorker();
-  // The live camera limits the letters and reads one block; a photo needs all letters and its layout.
-  await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" as never });
+  await worker.setParameters({ tessedit_char_whitelist: "" }); // the live camera limits the letters; a photo needs all
   const texts: string[] = [];
   for (const [i, [top, height, maxSide, maxZoom]] of parts.entries()) {
     onOcrProgress = (p) => onProgress((i + p) / parts.length);
@@ -104,8 +103,7 @@ function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
   // Enlarged: small print reads better when the letters are big.
-  // Not larger than needed: a smaller picture is read much faster.
-  const up = Math.min(2.5, 1000 / w);
+  const up = Math.min(3, 1400 / w);
   canvas.width = Math.round(w * up);
   canvas.height = Math.round(h * up);
   canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
@@ -239,14 +237,19 @@ export default function Scanner() {
     let frame = 0;
     (async () => {
       const worker = await ocrWorker().catch(() => null);
-      // One block of text, only code characters: faster, and fewer wrong guesses.
-      await worker?.setParameters({ tessedit_char_whitelist: CODE_CHARS, tessedit_pageseg_mode: "6" as never });
       while (active && worker) {
         await new Promise((r) => setTimeout(r, 40));
         const v = video.current;
         if (!active || !v?.videoWidth || paused.current) continue;
         const how = CLEANUPS[frame++ % CLEANUPS.length];
-        const text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
+        let text = "";
+        try {
+          // Set every time: a photo from the gallery reads with all letters in between.
+          await worker.setParameters({ tessedit_char_whitelist: CODE_CHARS });
+          text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
+        } catch {
+          continue; // one failed frame must not stop the scanning
+        }
         if (!active) return;
         const line = text.replace(/\s+/g, " ").trim();
         const code = codeIn(line);
@@ -258,7 +261,7 @@ export default function Scanner() {
         if (!code || numbers === last || (code === posted && !steady)) continue;
         posted = code;
         const res = await post(code).catch(() => null);
-        const data = res?.ok ? await res.json() : null;
+        const data = res?.ok ? await res.json().catch(() => null) : null;
         // Only a code that finds exactly one card counts. Read once is enough when
         // it matched the printed set code exactly; otherwise it must be read twice.
         if (!active || !data?.exact || !data.cards?.length || !(data.sure || steady)) continue;
