@@ -139,7 +139,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .card-nav.prev { left: 12px; }
 .card-nav.next { right: 12px; }
 .card-nav:active { transform: translateY(-50%) scale(0.94); }
-.card-hero img { width: 60%; max-width: 260px; border-radius: 12px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
+/* Fixed card shape, so the frame keeps its size while the next picture loads. */
+.card-hero img { width: 60%; max-width: 260px; aspect-ratio: 63 / 88; object-fit: contain; border-radius: 12px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
 .card-head { display: flex; flex-direction: column; gap: 4px; }
 .card-head h1 { font-size: 26px; }
 .price-card { background: var(--surface); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
