@@ -94,13 +94,22 @@ export default function Scanner() {
     stream.current = null;
     setLive(false);
   }
-  useEffect(() => stopCamera, []);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      stopCamera();
+    };
+  }, []);
 
   // The camera runs inside the page. Opening the phone's camera app instead made
   // Android close the page to free memory, and the photo was lost.
-  async function startCamera() {
+  // `auto`: started by opening the page. Then there is no tap to open the phone's
+  // camera app with, so on failure the start screen just stays.
+  async function startCamera(auto = false) {
     if (!navigator.mediaDevices?.getUserMedia) {
-      camera.current?.click();
+      if (!auto) camera.current?.click();
       return;
     }
     try {
@@ -108,13 +117,21 @@ export default function Scanner() {
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
+      // Left the page while the camera was starting: switch it off again.
+      if (!mounted.current) return stopCamera();
       setLive(true);
       setPhase({ step: "idle" });
     } catch {
       // No permission or no camera: fall back to the phone's own camera.
-      camera.current?.click();
+      if (!auto) camera.current?.click();
     }
   }
+
+  // The camera button in the tab bar leads here: go straight to the camera.
+  useEffect(() => {
+    startCamera(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (live && video.current && stream.current) {
@@ -204,7 +221,7 @@ export default function Scanner() {
           </>
         ) : (
           <>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={startCamera}>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => startCamera()}>
               {photo ? "Nieuwe scan" : "Start camera"}
             </button>
             <button type="button" className="btn" disabled={busy} onClick={() => gallery.current?.click()}>
