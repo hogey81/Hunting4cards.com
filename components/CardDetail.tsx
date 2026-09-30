@@ -96,7 +96,7 @@ export default async function CardDetail({ card, region }: { card: Card; region:
         <p className="muted">Voor deze kaart is nog geen Cardmarket-prijs bekend.</p>
       )}
 
-      <AddToCollection cardRef={toRef(region, card.id)} japanese={jp} hasReverse={hasReverse || !!card.variants?.reverse} />
+      <AddToCollection cardRef={toRef(region, card.id)} japanese={jp} hasReverse={hasReverse || !!card.variants?.reverse} hasHolo={!!card.variants?.holo} />
       <a href={productUrl ?? cardmarketSearchUrl(englishName ?? card.name)} className="btn btn-block" target="_blank" rel="noopener noreferrer">
         Bekijk op Cardmarket
       </a>

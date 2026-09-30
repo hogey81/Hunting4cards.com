@@ -6,7 +6,7 @@ import { useCollectionPrices } from "@/lib/use-collection-prices";
 import { cardCode } from "@/lib/set-code";
 import { cardHref } from "@/lib/card-ref";
 import CardImg from "@/components/CardImg";
-import { formatChange, formatEur, formatUpdated } from "@/lib/prices";
+import { VARIANT_NAMES, formatChange, formatEur, formatUpdated } from "@/lib/prices";
 
 export type Filter = "Alles" | "Stijgers" | "Dalers";
 
@@ -78,7 +78,7 @@ export default function CollectionView({ initialFilter }: { initialFilter: Filte
                 <div className="tile-name">{card?.name ?? "…"}</div>
                 <div className="tile-meta">
                   {card ? cardCode(card.id, card.localId) : cardCode(entry.cardId)} · {entry.language} · {entry.condition}
-                  {entry.variant === "reverse" ? " · reverse" : ""}
+                  {entry.variant !== "normal" ? ` · ${VARIANT_NAMES[entry.variant].toLowerCase()}` : ""}
                 </div>
                 <div className="tile-price">
                   <strong>{formatEur(price)}</strong>

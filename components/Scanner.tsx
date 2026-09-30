@@ -7,6 +7,7 @@ import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
+import { VARIANT_NAMES, type Variant } from "@/lib/prices";
 import { CLEANUPS, cleanUp, describeCamera, focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
 
 type Phase =
@@ -149,6 +150,7 @@ export default function Scanner() {
   const [popup, setPopup] = useState<ScanMatch | null>(null);
   const [popupSure, setPopupSure] = useState(true);
   const [choices, setChoices] = useState<ScanMatch[]>([]);
+  const [variant, setVariant] = useState<Variant>("normal");
   // What the camera last read and what that found, shown small under the picture:
   // a screenshot then tells where scanning gets stuck on a phone.
   const [debug, setDebug] = useState("");
@@ -241,6 +243,7 @@ export default function Scanner() {
     paused.current = true;
     setPopupSure(sure);
     setChoices(data.cards.slice(0, 4));
+    setVariant("normal");
     setPopup(data.cards[0]);
   }
 
@@ -425,7 +428,21 @@ export default function Scanner() {
                       <div className="scan-popup-info">
                         <span className="scan-popup-found">{popupSure ? "✓ Gevonden" : "Is dit je kaart?"}</span>
                         <strong>{popup.name}</strong>
-                        <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
+                        <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]}</span>
+                        <div className="scan-popup-pick" role="group" aria-label="Staat van de kaart">
+                          {CONDITIONS.map((c) => (
+                            <button key={c.code} type="button" title={c.name} aria-pressed={c.code === condition} className={c.code === condition ? "chip on" : "chip"} onClick={() => setCondition(c.code)}>
+                              {c.code}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="scan-popup-pick" role="group" aria-label="Versie">
+                          {(Object.keys(VARIANT_NAMES) as Variant[]).map((v) => (
+                            <button key={v} type="button" aria-pressed={v === variant} className={v === variant ? "chip on" : "chip"} onClick={() => setVariant(v)}>
+                              {VARIANT_NAMES[v]}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     {!popupSure && choices.length > 1 && (
@@ -439,7 +456,7 @@ export default function Scanner() {
                       </div>
                     )}
                     <div className="scan-popup-actions">
-                      <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, "normal", language, condition); closePopup(); }}>
+                      <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, variant, language, condition); closePopup(); }}>
                         Toevoegen
                       </button>
                       <button type="button" className="btn" onClick={closePopup}>Volgende kaart</button>
