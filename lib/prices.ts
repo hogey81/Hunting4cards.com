@@ -12,7 +12,8 @@ export type PriceInfo = {
   updated: string | null;
 };
 
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+// Cardmarket writes 0 when there is no price (e.g. no reverse holo sold), so 0 counts as missing.
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
 
 // Cardmarket's price guide lists the reverse holo / foil version in the "-holo" fields.
 export function pricesFor(pricing: CardmarketPricing | null | undefined, variant: Variant): PriceInfo {
