@@ -6,7 +6,7 @@ import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
-import { focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
+import { CLEANUPS, cleanUp, describeCamera, focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
 
 type Phase =
   | { step: "idle" }
@@ -110,13 +110,16 @@ function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   return canvas;
 }
 
-// Text that could be a card code: "120/094", or "SVP EN 085" on promos.
-const looksLikeCode = (text: string) => /\d{1,3}\s*[/|]\s*\d{2,3}|\b[A-Z0-9]{2,4}\s+[A-Z]{2}\s+\d{1,3}\b/.test(text);
+// The part of the text that could be a card code: "PFL DE 120/094", "120/094",
+// or "SVP EN 085" on promos.
+const codeIn = (text: string) =>
+  text.match(/(?:\b[A-Z0-9]{2,4}\s+)?(?:[A-Z]{2}\s+)?\d{1,3}\s*[/|]\s*\d{2,3}|\b[A-Z0-9]{2,4}\s+[A-Z]{2}\s+\d{1,3}\b/)?.[0] ?? null;
 // Reads with a number that found several cards but not one: after this many, show them.
 const SHOW_CANDIDATES_AFTER = 4;
 
 const ZOOMS = [1, 1.5, 2, 3];
-// Zoomed in, the phone is held further away: most phones can't focus closer than about 10 cm.
+// Zoomed in, the phone is held further away: most phones can't focus closer than
+// about 10 cm. Only when the camera zooms by itself: enlarging on screen makes the picture blurrier.
 const START_ZOOM = 2;
 
 export default function Scanner() {
@@ -134,6 +137,7 @@ export default function Scanner() {
   const [zoom, setZoom] = useState(START_ZOOM);
   const [hardwareZoom, setHardwareZoom] = useState(false);
   const [seen, setSeen] = useState("");
+  const [cameraInfo, setCameraInfo] = useState("");
   const screenZoom = hardwareZoom ? 1 : zoom;
 
   function stopCamera() {
@@ -166,7 +170,10 @@ export default function Scanner() {
       if (!mounted.current) return stopCamera();
       const track = stream.current.getVideoTracks()[0];
       const canZoom = await tuneCamera(track);
-      setHardwareZoom(canZoom && (await setCameraZoom(track, zoom)));
+      const hw = canZoom && (await setCameraZoom(track, START_ZOOM));
+      setHardwareZoom(hw);
+      setZoom(hw ? START_ZOOM : 1);
+      setCameraInfo(describeCamera(track, hw));
       setLive(true);
       setPhase({ step: "idle" });
     } catch {
@@ -210,26 +217,33 @@ export default function Scanner() {
     if (!live) return;
     let active = true;
     let tries = 0;
+    let last = "";
+    let frame = 0;
     (async () => {
       const worker = await ocrWorker().catch(() => null);
       while (active && worker) {
         await new Promise((r) => setTimeout(r, 250));
         const v = video.current;
         if (!active || !v?.videoWidth) continue;
-        const text = (await worker.recognize(grabGuide(v, zoomRef.current))).data.text;
+        const how = CLEANUPS[frame++ % CLEANUPS.length];
+        const text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
         if (!active) return;
         const line = text.replace(/\s+/g, " ").trim();
-        setSeen(looksLikeCode(line) ? line : "");
-        if (!looksLikeCode(line)) continue;
+        const code = codeIn(line);
+        setSeen(code ?? "");
+        // The same code again (the card is still in view): nothing new to look up.
+        if (!code || code === last) continue;
         const res = await post(line).catch(() => null);
         const data = res?.ok ? await res.json() : null;
         if (!active || !data?.cards?.length) continue;
         if (!data.exact && ++tries < SHOW_CANDIDATES_AFTER) continue;
-        active = false;
-        stopCamera();
+        last = code;
+        tries = 0;
+        // Show the card at once, and keep the camera running for the next card.
         setPhoto(null);
         const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
         setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
+        navigator.vibrate?.(60);
       }
     })();
     return () => {
@@ -312,7 +326,10 @@ export default function Scanner() {
               <br />
               bv. PFL 120/094 · tik om scherp te stellen
             </span>
-            <span className="scan-seen" role="status">{seen ? `Gelezen: ${seen.slice(0, 40)}` : "Zoeken naar de code…"}</span>
+            <span className="scan-seen" role="status">
+              {seen ? `Gelezen: ${seen.slice(0, 40)}` : "Zoeken naar de code…"}
+              {cameraInfo && <small>{cameraInfo}</small>}
+            </span>
             <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
               {zoom}×
             </button>
