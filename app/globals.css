@@ -280,3 +280,9 @@ a.chip { display: inline-flex; align-items: center; }
 .condition-hint { margin: 8px 2px 0; font-size: 13px; color: var(--muted); }
 .scan-condition { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 14px; }
 .scan-condition select { font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: inherit; }
+.owned-veil { position: absolute; inset: 0; background: rgba(236, 234, 229, 0.62); pointer-events: none; }
+.owned-check {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 17px;
+  background: var(--up); color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); pointer-events: none;
+}
