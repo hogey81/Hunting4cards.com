@@ -6,6 +6,7 @@ import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
+import { focusAt, openBackCamera, setCameraZoom, sharpness, tuneCamera } from "@/lib/camera";
 
 type Phase =
   | { step: "idle" }
@@ -85,10 +86,13 @@ const GUIDE_WIDTH = 0.78;
 const CARD_RATIO = 88 / 63;
 
 // Cuts the part of the video frame inside the card outline (the video is shown
-// with object-fit: cover, so the visible part is centred) and returns it as a photo.
-function grabCard(video: HTMLVideoElement): Promise<Blob | null> {
-  const box = video.getBoundingClientRect();
-  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
+// with object-fit: cover, so the visible part is centred). `screenZoom`: how much
+// the video is enlarged on screen when the camera can't zoom by itself.
+function grabCard(video: HTMLVideoElement, screenZoom: number) {
+  // The size before the on-screen enlargement (a CSS transform, which the bounding box includes).
+  const outer = video.getBoundingClientRect();
+  const box = { width: outer.width / screenZoom, height: outer.height / screenZoom };
+  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight) * screenZoom;
   let gw = box.width * GUIDE_WIDTH;
   let gh = gw * CARD_RATIO;
   if (gh > box.height * 0.92) {
@@ -102,8 +106,12 @@ function grabCard(video: HTMLVideoElement): Promise<Blob | null> {
   canvas.width = Math.round(w);
   canvas.height = Math.round(h);
   canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, w, h);
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  return canvas;
 }
+
+const ZOOMS = [1, 1.5, 2, 3];
+// Zoomed in, the phone is held further away: most phones can't focus closer than about 10 cm.
+const START_ZOOM = 2;
 
 export default function Scanner() {
   const camera = useRef<HTMLInputElement>(null);
@@ -117,6 +125,10 @@ export default function Scanner() {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [live, setLive] = useState(false);
+  const [zoom, setZoom] = useState(START_ZOOM);
+  const [hardwareZoom, setHardwareZoom] = useState(false);
+  const [grabbing, setGrabbing] = useState(false);
+  const screenZoom = hardwareZoom ? 1 : zoom;
 
   function stopCamera() {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -143,12 +155,12 @@ export default function Scanner() {
       return;
     }
     try {
-      stream.current = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
+      stream.current = await openBackCamera();
       // Left the page while the camera was starting: switch it off again.
       if (!mounted.current) return stopCamera();
+      const track = stream.current.getVideoTracks()[0];
+      const canZoom = await tuneCamera(track);
+      setHardwareZoom(canZoom && (await setCameraZoom(track, zoom)));
       setLive(true);
       setPhase({ step: "idle" });
     } catch {
@@ -170,10 +182,37 @@ export default function Scanner() {
     }
   }, [live]);
 
+  async function changeZoom() {
+    const next = ZOOMS[(ZOOMS.indexOf(zoom) + 1) % ZOOMS.length];
+    setZoom(next);
+    const track = stream.current?.getVideoTracks()[0];
+    if (track && hardwareZoom) await setCameraZoom(track, next);
+  }
+
+  function tapToFocus(e: React.MouseEvent<HTMLVideoElement>) {
+    const track = stream.current?.getVideoTracks()[0];
+    if (!track) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    focusAt(track, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  }
+
+  // Takes a few frames in a row and keeps the sharpest: a hand that moves a
+  // little, or focus that is still settling, blurs some of them.
   async function capture() {
-    if (!video.current?.videoWidth) return;
-    const blob = await grabCard(video.current);
+    const v = video.current;
+    if (!v?.videoWidth || grabbing) return;
+    setGrabbing(true);
+    let best: HTMLCanvasElement | null = null;
+    let bestScore = -1;
+    for (let i = 0; i < 6; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 90));
+      const frame = grabCard(v, screenZoom);
+      const score = sharpness(frame);
+      if (score > bestScore) [best, bestScore] = [frame, score];
+    }
+    setGrabbing(false);
     stopCamera();
+    const blob = await new Promise<Blob | null>((resolve) => best!.toBlob(resolve, "image/jpeg", 0.92));
     if (blob) onPhoto(new File([blob], "kaart.jpg", { type: "image/jpeg" }));
   }
 
@@ -236,9 +275,19 @@ export default function Scanner() {
       <div className={live ? "scan-frame live" : "scan-frame"}>
         {live ? (
           <>
-            <video ref={video} className="scan-video" playsInline muted />
+            <video
+              ref={video}
+              className="scan-video"
+              style={screenZoom > 1 ? { transform: `scale(${screenZoom})` } : undefined}
+              playsInline
+              muted
+              onClick={tapToFocus}
+            />
             <div className="scan-guide" aria-hidden="true" />
-            <span className="scan-guide-text">Vul het kader met de kaart</span>
+            <span className="scan-guide-text">Vul het kader · tik om scherp te stellen</span>
+            <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
+              {zoom}×
+            </button>
           </>
         ) : photo ? <img src={photo} alt="Jouw foto" /> : (
           <div className="scan-empty">
@@ -261,7 +310,7 @@ export default function Scanner() {
       <div className="scan-actions">
         {live ? (
           <>
-            <button type="button" className="btn btn-primary" onClick={capture}>Scan kaart</button>
+            <button type="button" className="btn btn-primary" onClick={capture} disabled={grabbing}>Scan kaart</button>
             <button type="button" className="btn" onClick={stopCamera}>Stoppen</button>
           </>
         ) : (
