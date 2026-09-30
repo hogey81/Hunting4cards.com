@@ -33,6 +33,8 @@ async function prepare(file: File, top = 0, height = 1, maxSide = 1800, maxZoom 
   return canvas;
 }
 
+type ScanAnswer = { cards: ScanMatch[]; exact: boolean; sure?: boolean; read: string; language: string };
+
 type OcrWorker = Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>;
 
 // Text recognition takes a few seconds to load, so it starts as soon as the scan
@@ -53,6 +55,25 @@ function ocrWorker() {
   );
   ocr.catch(() => (ocr = null));
   return ocr;
+}
+
+// The live camera reads each frame three times at once, each cleaned up another
+// way (see CLEANUPS), on workers of its own: most frames only one of those reads
+// the code, so one after the other took three frames to find it.
+let live: Promise<OcrWorker[]> | null = null;
+function liveWorkers() {
+  live ??= import("tesseract.js").then(({ createWorker }) =>
+    Promise.all(
+      CLEANUPS.map(async () => {
+        const w = await createWorker("eng", 1, { workerPath: "/ocr/worker.min.js", corePath: "/ocr", langPath: "/ocr" });
+        // One line of code characters: faster, and fewer wrong guesses.
+        await w.setParameters({ tessedit_char_whitelist: CODE_CHARS });
+        return w;
+      }),
+    ),
+  );
+  live.catch(() => (live = null));
+  return live;
 }
 
 // Reads parts of the photo. Each part is [top, height, maxSide, maxZoom].
@@ -175,6 +196,9 @@ export default function Scanner() {
   useEffect(() => {
     mounted.current = true;
     ocrWorker().catch(() => {});
+    // Start the camera's readers and wake the server now, so the first card isn't slow.
+    liveWorkers().catch(() => {});
+    fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "" }) }).catch(() => {});
     return () => {
       mounted.current = false;
       stopCamera();
@@ -274,27 +298,34 @@ export default function Scanner() {
     const recent: string[] = [];
     let posted = "";
     let missed = ""; // read clearly, but no card found for it
-    let frame = 0;
+    // Answers per code read, so the same code isn't asked again.
+    const answers = new Map<string, { res: Response | null; data: ScanAnswer | null }>();
     (async () => {
-      const worker = await ocrWorker().catch(() => null);
-      while (active && worker) {
-        await new Promise((r) => setTimeout(r, 40));
+      const workers = await liveWorkers().catch(() => null);
+      while (active && workers) {
+        await new Promise((r) => setTimeout(r, 15));
         const v = video.current;
         if (!active || !v?.videoWidth || paused.current) continue;
-        const how = CLEANUPS[frame++ % CLEANUPS.length];
-        let text = "";
+        let lines: string[];
+        const started = performance.now();
         try {
-          // Set every time: a photo from the gallery reads with all letters in between.
-          await worker.setParameters({ tessedit_char_whitelist: CODE_CHARS });
-          text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
+          lines = await Promise.all(
+            CLEANUPS.map(async (how, i) => (await workers[i].recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()),
+          );
         } catch (e) {
           setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
           continue; // one failed frame must not stop the scanning
         }
         if (!active) return;
-        const line = text.replace(/\s+/g, " ").trim();
-        const code = codeIn(line);
-        if (line) setDebug(`gelezen: "${line.slice(0, 32)}"`);
+        // The read with a code, preferring one with the set letters before it; the
+        // other reads go along, the set code may be only in one of them.
+        const withCode = lines.filter((l) => codeIn(l)).sort((a, b) => codeIn(b)!.length - codeIn(a)!.length);
+        const line = [...withCode, ...lines.filter((l) => !withCode.includes(l))].join(" \n ");
+        const code = withCode.length ? codeIn(withCode[0]) : null;
+        // Two cleanups reading the same numbers in one frame is as good as two frames.
+        const agree = withCode.length > 1 && withCode.filter((l) => numbersOf(codeIn(l)!) === numbersOf(code!)).length > 1;
+        const ms = Math.round(performance.now() - started);
+        if (line.trim()) setDebug(`gelezen in ${ms} ms: "${line.replace(/ \n /g, " | ").slice(0, 40)}"`);
         if (code) setLastCode(code);
         setSeen(
           !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
@@ -302,7 +333,7 @@ export default function Scanner() {
         const numbers = code ? numbersOf(code) : "";
         recent.push(numbers);
         if (recent.length > 9) recent.shift();
-        const steady = !!code && recent.filter((n) => n === numbers).length >= 2;
+        const steady = !!code && (agree || recent.filter((n) => n === numbers).length >= 2);
         // The card just shown is skipped while it stays in view, so it doesn't pop up
         // again at once; scanned again after it was away a moment, or a few seconds
         // later, it is shown again (the same card twice, or a second copy).
@@ -319,8 +350,13 @@ export default function Scanner() {
         if (!code || numbers === last || (code === posted && !steady)) continue;
         posted = code;
         // The whole line: the set code may stand apart from the number ("G SVIEN 047/198").
-        const res = await post(line).catch(() => null);
-        const data = res?.ok ? await res.json().catch(() => null) : null;
+        let answer = answers.get(code);
+        if (!answer) {
+          const res = await post(line).catch(() => null);
+          answer = { res, data: res?.ok ? await res.json().catch(() => null) : null };
+          if (answer.data) answers.set(code, answer);
+        }
+        const { res, data } = answer;
         if (!active) return;
         setDebug(`${code} → ${!res ? "geen verbinding" : !res.ok ? `fout ${res.status}` : `${data?.cards?.length ?? 0} kaart(en)${data?.exact ? ", precies" : ""}${data?.sure ? ", zeker" : ""}`}`);
         // Exactly one card: shown at once when the set code matched exactly, else

@@ -306,10 +306,10 @@ a.chip { display: inline-flex; align-items: center; }
   animation: pop-in 0.12s ease-out;
 }
 @keyframes pop-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-.scan-popup-card { display: flex; gap: 12px; align-items: center; }
-.scan-popup-card .tile-img { width: 84px; flex-shrink: 0; }
-.scan-popup-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.scan-popup-info strong { font-size: 18px; }
+.scan-popup-card { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
+.scan-popup-card .tile-img { width: min(46vw, 180px); flex-shrink: 0; }
+.scan-popup-info { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.scan-popup-info strong { font-size: 22px; }
 .scan-popup-found { color: var(--up); font-weight: 800; font-size: 13px; }
 .scan-popup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .scan-search { width: 100%; margin-bottom: 10px; }
