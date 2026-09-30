@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
@@ -232,8 +233,12 @@ export default function Scanner() {
     if (!live) return;
     let active = true;
     let last = "";
-    let previous = "";
+    // The numbers read in the last frames: each frame is cleaned up differently and
+    // often only one of those reads the code, so "read twice" counts recent frames,
+    // not only the one just before.
+    const recent: string[] = [];
     let posted = "";
+    let missed = ""; // read clearly, but no card found for it
     let frame = 0;
     (async () => {
       const worker = await ocrWorker().catch(() => null);
@@ -253,10 +258,13 @@ export default function Scanner() {
         if (!active) return;
         const line = text.replace(/\s+/g, " ").trim();
         const code = codeIn(line);
-        setSeen(code ?? "");
+        setSeen(
+          !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
+        );
         const numbers = code ? numbersOf(code) : "";
-        const steady = !!code && numbers === previous;
-        previous = numbers;
+        recent.push(numbers);
+        if (recent.length > 9) recent.shift();
+        const steady = !!code && recent.filter((n) => n === numbers).length >= 2;
         // Nothing read, the card just shown (still in view), or this exact text already looked up.
         if (!code || numbers === last || (code === posted && !steady)) continue;
         posted = code;
@@ -264,7 +272,11 @@ export default function Scanner() {
         const data = res?.ok ? await res.json().catch(() => null) : null;
         // Only a code that finds exactly one card counts. Read once is enough when
         // it matched the printed set code exactly; otherwise it must be read twice.
-        if (!active || !data?.exact || !data.cards?.length || !(data.sure || steady)) continue;
+        if (!active) return;
+        if (!data?.exact || !data.cards?.length || !(data.sure || steady)) {
+          if (steady && data) missed = numbers;
+          continue;
+        }
         last = numbers;
         // Show the card at once, in front of the camera.
         setPhoto(null);
@@ -365,7 +377,7 @@ export default function Scanner() {
             </div>
             <span className="scan-seen" role="status">
               {seen
-                ? `Code gelezen: ${seen.slice(0, 30)} · even stilhouden…`
+                ? seen
                 : found
                   ? `✓ ${found} gevonden · leg de volgende kaart neer`
                   : "Zoeken naar de code onderaan de kaart…"}
@@ -373,25 +385,29 @@ export default function Scanner() {
             </span>
             {popup && (() => {
               const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
-              return (
-                <div className="scan-popup" role="dialog" aria-label="Kaart gevonden">
-                  <div className="scan-popup-card">
-                    <div className="tile-img">
-                      <CardImg src={popup.image} name={popup.name} code={popup.code} />
+              // On the page itself, so no part of the scan page can clip or cover it.
+              return createPortal(
+                <div className="scan-popup-backdrop">
+                  <div className="scan-popup" role="dialog" aria-label="Kaart gevonden">
+                    <div className="scan-popup-card">
+                      <div className="tile-img">
+                        <CardImg src={popup.image} name={popup.name} code={popup.code} />
+                      </div>
+                      <div className="scan-popup-info">
+                        <span className="scan-popup-found">✓ Gevonden</span>
+                        <strong>{popup.name}</strong>
+                        <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
+                      </div>
                     </div>
-                    <div className="scan-popup-info">
-                      <span className="scan-popup-found">✓ Gevonden</span>
-                      <strong>{popup.name}</strong>
-                      <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
+                    <div className="scan-popup-actions">
+                      <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, "normal", language, condition); closePopup(); }}>
+                        Toevoegen
+                      </button>
+                      <button type="button" className="btn" onClick={closePopup}>Volgende kaart</button>
                     </div>
                   </div>
-                  <div className="scan-popup-actions">
-                    <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, "normal", language, condition); closePopup(); }}>
-                      Toevoegen
-                    </button>
-                    <button type="button" className="btn" onClick={closePopup}>Volgende kaart</button>
-                  </div>
-                </div>
+                </div>,
+                document.body,
               );
             })()}
             <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>

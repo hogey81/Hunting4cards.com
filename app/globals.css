@@ -297,8 +297,11 @@ a.chip { display: inline-flex; align-items: center; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .scan-seen small { display: block; font-size: 10px; font-weight: 600; opacity: 0.75; }
+/* Fixed in the middle of the screen, above the tab bar: at the bottom of the camera
+   frame it could end up behind the tab bar or below the screen. */
+.scan-popup-backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .scan-popup {
-  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 2; background: var(--surface); color: var(--ink);
+  width: 100%; max-width: 420px; background: var(--surface); color: var(--ink);
   border-radius: 18px; padding: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 10px;
   animation: pop-in 0.18s ease-out;
 }
