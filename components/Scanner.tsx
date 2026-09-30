@@ -81,32 +81,36 @@ const LANGUAGE_NAMES: Record<string, string> = {
   EN: "Engels", NL: "Nederlands", DE: "Duits", FR: "Frans", IT: "Italiaans", ES: "Spaans", PT: "Portugees", JP: "Japans",
 };
 
-// The live camera only reads the code at the bottom left of the card
-// ("PFL EN 120/094"): a short line of plain text on a quiet background, which
-// reads far more reliably than the whole card. The outline is a wide strip
-// (as a share of the frame; height / width).
-const GUIDE_WIDTH = 0.8;
-const GUIDE_RATIO = 5 / 16;
+// The whole card goes in a card-shaped outline, which anyone understands. Only
+// the bottom edge of the card is read: the code ("PFL EN 120/094") is a short line
+// of plain print there, which reads far more reliably than the whole card.
+// Outline width as a share of the frame; height / width of a card.
+const GUIDE_WIDTH = 0.7;
+const CARD_RATIO = 88 / 63;
+// The strip that is read, as a share of the card's height from the top.
+const CODE_TOP = 0.84;
+const CODE_BOTTOM = 1.03;
 
-// Cuts the part of the video frame inside the outline (the video is shown
-// with object-fit: cover, so the visible part is centred). `screenZoom`: how much
-// the video is enlarged on screen when the camera can't zoom by itself.
-function grabGuide(video: HTMLVideoElement, screenZoom: number) {
+// Cuts the bottom edge of the card in the outline out of the video frame (the
+// video is shown with object-fit: cover, so the visible part is centred).
+// `screenZoom`: how much the video is enlarged on screen when the camera can't zoom by itself.
+function grabCodeStrip(video: HTMLVideoElement, screenZoom: number) {
   // The size before the on-screen enlargement (a CSS transform, which the bounding box includes).
   const outer = video.getBoundingClientRect();
   const box = { width: outer.width / screenZoom, height: outer.height / screenZoom };
   const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight) * screenZoom;
   const gw = box.width * GUIDE_WIDTH;
-  const gh = gw * GUIDE_RATIO;
-  // A margin, so a code held slightly off-centre is still complete.
-  const w = Math.min(video.videoWidth, (gw * 1.1) / scale);
-  const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
+  const gh = gw * CARD_RATIO;
+  // In video pixels, around the centre of the frame. A margin at the sides, for a card held a bit off-centre.
+  const w = Math.min(video.videoWidth, (gw * 1.08) / scale);
+  const top = video.videoHeight / 2 + ((CODE_TOP - 0.5) * gh) / scale;
+  const h = ((CODE_BOTTOM - CODE_TOP) * gh) / scale;
   const canvas = document.createElement("canvas");
   // Enlarged: small print reads better when the letters are big.
   const up = Math.min(3, 1400 / w);
   canvas.width = Math.round(w * up);
   canvas.height = Math.round(h * up);
-  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
+  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, top, w, h, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 
@@ -142,6 +146,8 @@ export default function Scanner() {
   const [zoom, setZoom] = useState(START_ZOOM);
   const [hardwareZoom, setHardwareZoom] = useState(false);
   const [seen, setSeen] = useState("");
+  const [found, setFound] = useState("");
+  const results = useRef<HTMLElement>(null);
   const [cameraInfo, setCameraInfo] = useState("");
   const screenZoom = hardwareZoom ? 1 : zoom;
 
@@ -231,7 +237,7 @@ export default function Scanner() {
         const v = video.current;
         if (!active || !v?.videoWidth) continue;
         const how = CLEANUPS[frame++ % CLEANUPS.length];
-        const text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
+        const text = (await worker.recognize(cleanUp(grabCodeStrip(v, zoomRef.current), how))).data.text;
         if (!active) return;
         const line = text.replace(/\s+/g, " ").trim();
         const code = codeIn(line);
@@ -251,6 +257,8 @@ export default function Scanner() {
         const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
         setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
         navigator.vibrate?.(60);
+        setFound(data.cards[0].name);
+        setTimeout(() => results.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
       }
     })();
     return () => {
@@ -327,14 +335,16 @@ export default function Scanner() {
               muted
               onClick={tapToFocus}
             />
-            <div className="scan-guide code" aria-hidden="true" />
-            <span className="scan-guide-text">
-              Richt het kader op de code linksonder op de kaart
-              <br />
-              bv. PFL 120/094 · tik om scherp te stellen
-            </span>
+            <div className="scan-guide card" aria-hidden="true">
+              <span className="scan-guide-code">hier staat de code, bv. PFL 120/094</span>
+            </div>
+            <span className="scan-guide-text">Leg de hele kaart in het kader en houd stil</span>
             <span className="scan-seen" role="status">
-              {seen ? `Gelezen: ${seen.slice(0, 40)}` : "Zoeken naar de code…"}
+              {seen
+                ? `Code gelezen: ${seen.slice(0, 30)}`
+                : found
+                  ? `✓ ${found} gevonden · leg de volgende kaart neer`
+                  : "Zoeken naar de code onderaan de kaart…"}
               {cameraInfo && <small>{cameraInfo}</small>}
             </span>
             <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
@@ -382,7 +392,7 @@ export default function Scanner() {
       {phase.step === "error" && <p className="muted">{phase.message}</p>}
 
       {phase.step === "done" && (
-        <section className="scan-results">
+        <section className="scan-results" ref={results}>
           <p className="muted">
             Gelezen: <strong>{phase.read}</strong>.{" "}
             {phase.cards.length === 0
