@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { LANGUAGES, entryKey, useCollection, type Language } from "@/lib/collection";
+import { useEffect, useState } from "react";
+import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import type { Variant } from "@/lib/prices";
 
 export default function AddToCollection({ cardRef, japanese, hasReverse }: { cardRef: string; japanese: boolean; hasReverse: boolean }) {
   const { entries, add, setQuantity } = useCollection();
   const [picked, setPicked] = useState<Language>("EN");
   const [variant, setVariant] = useState<Variant>("normal");
+  const [condition, setCondition] = useState<Condition>("NM");
+  useEffect(() => setCondition(lastCondition()), []);
   const language: Language = japanese ? "JP" : picked;
-  const current = entries.find((e) => e.key === entryKey(cardRef, variant, language));
+  const current = entries.find((e) => e.key === entryKey(cardRef, variant, language, condition));
+  const conditionInfo = CONDITIONS.find((c) => c.code === condition)!;
 
   return (
     <section className="add">
@@ -37,14 +40,25 @@ export default function AddToCollection({ cardRef, japanese, hasReverse }: { car
           </div>
         </fieldset>
       )}
+      <fieldset>
+        <legend>Staat van jouw kaart</legend>
+        <div className="seg seg-4">
+          {CONDITIONS.map((c) => (
+            <button key={c.code} type="button" className={c.code === condition ? "chip on" : "chip"} aria-pressed={c.code === condition} title={c.name} onClick={() => setCondition(c.code)}>
+              {c.code}
+            </button>
+          ))}
+        </div>
+        <p className="condition-hint"><strong>{conditionInfo.name}</strong>: {conditionInfo.hint.toLowerCase()}</p>
+      </fieldset>
       {current ? (
         <div className="stepper">
           <button type="button" className="round-btn" aria-label="Eén minder" onClick={() => setQuantity(current.key, current.quantity - 1)}>−</button>
           <span>{current.quantity}× in je collectie</span>
-          <button type="button" className="round-btn" aria-label="Eén meer" onClick={() => add(cardRef, variant, language)}>+</button>
+          <button type="button" className="round-btn" aria-label="Eén meer" onClick={() => add(cardRef, variant, language, condition)}>+</button>
         </div>
       ) : (
-        <button type="button" className="btn btn-primary btn-block" onClick={() => add(cardRef, variant, language)}>
+        <button type="button" className="btn btn-primary btn-block" onClick={() => add(cardRef, variant, language, condition)}>
           + Toevoegen aan collectie
         </button>
       )}

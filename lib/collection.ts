@@ -10,11 +10,25 @@ import type { Variant } from "./prices";
 export const LANGUAGES = ["EN", "NL", "DE", "FR", "IT", "ES", "PT"] as const;
 export type Language = (typeof LANGUAGES)[number] | "JP";
 
+// Card condition, on Cardmarket's scale.
+export const CONDITIONS = [
+  { code: "MT", name: "Mint", hint: "Perfect, rechtstreeks uit het pakje" },
+  { code: "NM", name: "Near Mint", hint: "Bijna perfect, hooguit een piepklein foutje" },
+  { code: "EX", name: "Excellent", hint: "Licht gebruikt, kleine witte randjes of krasjes" },
+  { code: "GD", name: "Good", hint: "Duidelijk gebruikt, randen en hoeken wat versleten" },
+  { code: "LP", name: "Light Played", hint: "Flink gespeeld, zichtbare slijtage" },
+  { code: "PL", name: "Played", hint: "Zwaar gebruikt, maar nog heel" },
+  { code: "PO", name: "Poor", hint: "Beschadigd: vouw, scheur of waterschade" },
+] as const;
+export type Condition = (typeof CONDITIONS)[number]["code"];
+export const conditionName = (c: Condition) => CONDITIONS.find((x) => x.code === c)?.name ?? c;
+
 export type CollectionEntry = {
   key: string;
   cardId: string;
   variant: Variant;
   language: Language;
+  condition: Condition;
   quantity: number;
   addedAt: string;
 };
@@ -22,18 +36,38 @@ export type CollectionEntry = {
 const STORAGE_KEY = "h4c.collection.v1";
 const EVENT = "h4c-collection";
 
-export function entryKey(cardId: string, variant: Variant, language: Language) {
-  return `${cardId}|${variant}|${language}`;
+export function entryKey(cardId: string, variant: Variant, language: Language, condition: Condition) {
+  return `${cardId}|${variant}|${language}|${condition}`;
 }
 
 function read(): CollectionEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // Cards added before conditions existed count as Near Mint.
+    return parsed.map((e: CollectionEntry) =>
+      e.condition ? e : { ...e, condition: "NM", key: entryKey(e.cardId, e.variant, e.language, "NM") },
+    );
   } catch {
     return [];
   }
+}
+
+// The condition picked last time is the likeliest for the next card
+// (most people add a pile of cards in the same state).
+const CONDITION_KEY = "h4c.condition";
+export function lastCondition(): Condition {
+  try {
+    const c = localStorage.getItem(CONDITION_KEY);
+    if (CONDITIONS.some((x) => x.code === c)) return c as Condition;
+  } catch {}
+  return "NM";
+}
+export function rememberCondition(c: Condition) {
+  try {
+    localStorage.setItem(CONDITION_KEY, c);
+  } catch {}
 }
 
 function write(entries: CollectionEntry[]) {
@@ -61,12 +95,13 @@ export function useCollection() {
     };
   }, []);
 
-  const add = useCallback((cardId: string, variant: Variant, language: Language, quantity = 1) => {
+  const add = useCallback((cardId: string, variant: Variant, language: Language, condition: Condition, quantity = 1) => {
     const all = read();
-    const key = entryKey(cardId, variant, language);
+    const key = entryKey(cardId, variant, language, condition);
     const existing = all.find((e) => e.key === key);
     if (existing) existing.quantity += quantity;
-    else all.push({ key, cardId, variant, language, quantity, addedAt: new Date().toISOString() });
+    else all.push({ key, cardId, variant, language, condition, quantity, addedAt: new Date().toISOString() });
+    rememberCondition(condition);
     write(all);
   }, []);
 
