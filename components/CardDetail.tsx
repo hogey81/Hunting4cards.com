@@ -3,7 +3,7 @@ import AddToCollection from "@/components/AddToCollection";
 import CardImg from "@/components/CardImg";
 import { cardImage, getSet, type Card, type Region } from "@/lib/tcgdex";
 import { cardmarketProductUrl } from "@/lib/cardmarket-url";
-import { setHref, toRef } from "@/lib/card-ref";
+import { cardHref, setHref, toRef } from "@/lib/card-ref";
 import { englishNameForDex } from "@/lib/names";
 import { setCode } from "@/lib/set-code";
 import { cardmarketSearchUrl, formatChange, formatEur, formatUpdated, pricesFor, trendChange, type PriceInfo } from "@/lib/prices";
@@ -34,8 +34,13 @@ function PriceBlock({ title, p }: { title: string; p: PriceInfo }) {
 
 export default async function CardDetail({ card, region }: { card: Card; region: Region }) {
   const jp = region === "ja";
+  const set = await getSet(card.set.id, region).catch(() => null);
   // Japanese cards have their own Cardmarket pages we can't derive yet: those use search.
-  const productUrl = jp ? null : cardmarketProductUrl(card, await getSet(card.set.id).catch(() => null));
+  const productUrl = jp ? null : cardmarketProductUrl(card, set);
+  // The cards before and after this one in the set, for the arrows.
+  const at = set?.cards.findIndex((c) => c.id === card.id) ?? -1;
+  const prev = at > 0 ? set!.cards[at - 1] : null;
+  const next = at >= 0 && at < set!.cards.length - 1 ? set!.cards[at + 1] : null;
   const code = `${jp ? card.set.id : setCode(card.set)} ${card.localId}`;
   const englishName = jp ? englishNameForDex(card.dexId?.[0]) : null;
   const cm = card.pricing?.cardmarket;
@@ -47,7 +52,17 @@ export default async function CardDetail({ card, region }: { card: Card; region:
     <>
       <Link href={setHref(region, card.set.id)} className="back">← {card.set.name}</Link>
       <div className="card-hero">
+        {prev && (
+          <Link href={cardHref(toRef(region, prev.id))} className="card-nav prev" aria-label={`Vorige kaart: ${prev.name}`}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+          </Link>
+        )}
         <CardImg src={cardImage(card.image, "high")} name={card.name} code={code} eager />
+        {next && (
+          <Link href={cardHref(toRef(region, next.id))} className="card-nav next" aria-label={`Volgende kaart: ${next.name}`}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+          </Link>
+        )}
       </div>
       <header className="card-head">
         <h1>
