@@ -147,6 +147,11 @@ export default function Scanner() {
   const [found, setFound] = useState("");
   // The card just found, shown in front of the camera; reading waits while it is open.
   const [popup, setPopup] = useState<ScanMatch | null>(null);
+  const [popupSure, setPopupSure] = useState(true);
+  // What the camera last read and what that found, shown small under the picture:
+  // a screenshot then tells where scanning gets stuck on a phone.
+  const [debug, setDebug] = useState("");
+  const [lastCode, setLastCode] = useState("");
   const paused = useRef(false);
   const closePopup = () => {
     setPopup(null);
@@ -225,6 +230,28 @@ export default function Scanner() {
     focusAt(track, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   }
 
+  // Shows the card in the middle of the screen; `sure` false asks "Is dit je kaart?".
+  function showCard(data: { cards: ScanMatch[]; exact: boolean; read: string; language: string }, sure: boolean) {
+    setPhoto(null);
+    const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? (data.language as Language) : "EN";
+    setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
+    navigator.vibrate?.(60);
+    setFound(data.cards[0].name);
+    paused.current = true;
+    setPopupSure(sure);
+    setPopup(data.cards[0]);
+  }
+
+  // The "Zoek deze code" button: look up the last code read, whatever it is.
+  async function searchLastCode() {
+    if (!lastCode) return;
+    setDebug(`zoeken naar ${lastCode}…`);
+    const res = await post(lastCode).catch(() => null);
+    const data = res?.ok ? await res.json().catch(() => null) : null;
+    if (data?.cards?.length) showCard(data, !!data.exact);
+    else setDebug(`${lastCode}: ${res ? (res.ok ? "geen kaart gevonden" : `fout ${res.status}`) : "geen verbinding"}`);
+  }
+
   // While the camera runs, keep reading the strip until a code finds the card:
   // no button to press, and a blurry frame just means the next one is tried.
   const zoomRef = useRef(screenZoom);
@@ -252,12 +279,15 @@ export default function Scanner() {
           // Set every time: a photo from the gallery reads with all letters in between.
           await worker.setParameters({ tessedit_char_whitelist: CODE_CHARS });
           text = (await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text;
-        } catch {
+        } catch (e) {
+          setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
           continue; // one failed frame must not stop the scanning
         }
         if (!active) return;
         const line = text.replace(/\s+/g, " ").trim();
         const code = codeIn(line);
+        if (line) setDebug(`gelezen: "${line.slice(0, 32)}"`);
+        if (code) setLastCode(code);
         setSeen(
           !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
         );
@@ -270,22 +300,17 @@ export default function Scanner() {
         posted = code;
         const res = await post(code).catch(() => null);
         const data = res?.ok ? await res.json().catch(() => null) : null;
-        // Only a code that finds exactly one card counts. Read once is enough when
-        // it matched the printed set code exactly; otherwise it must be read twice.
         if (!active) return;
-        if (!data?.exact || !data.cards?.length || !(data.sure || steady)) {
+        setDebug(`${code} → ${!res ? "geen verbinding" : !res.ok ? `fout ${res.status}` : `${data?.cards?.length ?? 0} kaart(en)${data?.exact ? ", precies" : ""}${data?.sure ? ", zeker" : ""}`}`);
+        // Exactly one card: shown at once when the set code matched exactly, else
+        // when read twice. Read twice but not one card: the best guess, as a question.
+        const exact = !!data?.exact && (data.sure || steady);
+        if (!data?.cards?.length || !(exact || steady)) {
           if (steady && data) missed = numbers;
           continue;
         }
         last = numbers;
-        // Show the card at once, in front of the camera.
-        setPhoto(null);
-        const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
-        setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
-        navigator.vibrate?.(60);
-        setFound(data.cards[0].name);
-        paused.current = true;
-        setPopup(data.cards[0]);
+        showCard(data, exact);
       }
     })();
     return () => {
@@ -382,6 +407,7 @@ export default function Scanner() {
                   ? `✓ ${found} gevonden · leg de volgende kaart neer`
                   : "Zoeken naar de code onderaan de kaart…"}
               {cameraInfo && <small>{cameraInfo}</small>}
+              {debug && <small>{debug}</small>}
             </span>
             {popup && (() => {
               const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
@@ -394,7 +420,7 @@ export default function Scanner() {
                         <CardImg src={popup.image} name={popup.name} code={popup.code} />
                       </div>
                       <div className="scan-popup-info">
-                        <span className="scan-popup-found">✓ Gevonden</span>
+                        <span className="scan-popup-found">{popupSure ? "✓ Gevonden" : "Is dit je kaart?"}</span>
                         <strong>{popup.name}</strong>
                         <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
                       </div>
@@ -432,6 +458,11 @@ export default function Scanner() {
 
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={gallery} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+      {live && lastCode && !popup && (
+        <button type="button" className="btn btn-primary scan-search" onClick={searchLastCode}>
+          Zoek {lastCode}
+        </button>
+      )}
       <div className="scan-actions">
         {live ? (
           <>

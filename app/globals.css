@@ -312,3 +312,4 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-popup-info strong { font-size: 18px; }
 .scan-popup-found { color: var(--up); font-weight: 800; font-size: 13px; }
 .scan-popup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.scan-search { width: 100%; margin-bottom: 10px; }
