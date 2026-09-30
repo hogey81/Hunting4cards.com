@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cardImage, getCard, getSet, type CardResume, type Region } from "@/lib/tcgdex";
 import { findByCode, findInSet, search, type Results } from "@/lib/search";
-import { matchSet, readCode, totalFits } from "@/lib/code-match";
+import { matchSet, readCode, setsForTotal, totalFits } from "@/lib/code-match";
 import { cardCode, setIdFromCardId } from "@/lib/set-code";
 import { matchCards, type CardCandidate } from "@/lib/card-match";
 import { toRef } from "@/lib/card-ref";
@@ -72,13 +72,26 @@ export async function POST(request: Request) {
   try {
     // A full code with "/094": checked against the sets that exist (see lib/code-match.ts).
     const code = readCode(String(text ?? ""));
-    const set = code && matchSet(code);
+    const set = code && matchSet(code, String(text ?? ""));
     if (code && set) {
       const cards = toMatches(await findInSet(set.id, code.number));
       const language = cardLanguage(code.language ?? hints.language, candidates, cards.map((c) => c.ref));
       // `sure`: code letters, number and set size all as printed, so the camera needn't read it again.
       if (cards.length)
         return NextResponse.json({ cards, exact: cards.length === 1, sure: set.sure, read: cards[0].code, language });
+    }
+
+    // The "/198" fits known sets but the letters were misread: this number in each
+    // of those sets, likeliest first, as a question. Never a card from another set
+    // (a misread "EI 047" once found the Japanese card "E1 047").
+    const sameSize = code ? setsForTotal(code, String(text ?? "")) : [];
+    if (code && sameSize.length) {
+      const found = (await Promise.all(sameSize.map((id) => findInSet(id, code.number).catch(() => null)))).filter(
+        (r): r is Results => !!r,
+      );
+      const cards = found.flatMap((r) => toMatches(r)).slice(0, 4);
+      const language = code.language ?? hints.language;
+      return NextResponse.json({ cards, exact: false, sure: false, read: cards[0]?.code ?? "", language });
     }
 
     for (const code of hints.codes.slice(0, 4)) {

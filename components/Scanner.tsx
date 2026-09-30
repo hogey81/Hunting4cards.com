@@ -118,7 +118,7 @@ const CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ";
 // "SVP EN 085" on promos. Strict on purpose: a carpet or a table read as text
 // easily gives something like "E1 047", which is also a real card.
 const LANG = "(?:EN|DE|FR|IT|ES|PT|NL)";
-const CODE_RE = new RegExp(`(?:\\b[A-Z0-9]{2,4}\\s+)?(?:${LANG}\\s+)?\\d{1,3}\\s*/\\s*\\d{2,3}\\b`);
+const CODE_RE = new RegExp(`(?:\\b[A-Z0-9]{2,6}\\s+)?(?:${LANG}\\s+)?\\d{1,3}\\s*/\\s*\\d{2,3}\\b`);
 const codeIn = (text: string) => text.match(CODE_RE)?.[0] ?? null;
 // The numbers alone ("120/094"): the same card read twice in a row, whatever the
 // letters came out as, before it is looked up.
@@ -148,6 +148,7 @@ export default function Scanner() {
   // The card just found, shown in front of the camera; reading waits while it is open.
   const [popup, setPopup] = useState<ScanMatch | null>(null);
   const [popupSure, setPopupSure] = useState(true);
+  const [choices, setChoices] = useState<ScanMatch[]>([]);
   // What the camera last read and what that found, shown small under the picture:
   // a screenshot then tells where scanning gets stuck on a phone.
   const [debug, setDebug] = useState("");
@@ -239,6 +240,7 @@ export default function Scanner() {
     setFound(data.cards[0].name);
     paused.current = true;
     setPopupSure(sure);
+    setChoices(data.cards.slice(0, 4));
     setPopup(data.cards[0]);
   }
 
@@ -298,7 +300,8 @@ export default function Scanner() {
         // Nothing read, the card just shown (still in view), or this exact text already looked up.
         if (!code || numbers === last || (code === posted && !steady)) continue;
         posted = code;
-        const res = await post(code).catch(() => null);
+        // The whole line: the set code may stand apart from the number ("G SVIEN 047/198").
+        const res = await post(line).catch(() => null);
         const data = res?.ok ? await res.json().catch(() => null) : null;
         if (!active) return;
         setDebug(`${code} → ${!res ? "geen verbinding" : !res.ok ? `fout ${res.status}` : `${data?.cards?.length ?? 0} kaart(en)${data?.exact ? ", precies" : ""}${data?.sure ? ", zeker" : ""}`}`);
@@ -425,6 +428,16 @@ export default function Scanner() {
                         <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]} · {condition}</span>
                       </div>
                     </div>
+                    {!popupSure && choices.length > 1 && (
+                      <div className="scan-popup-choices">
+                        <span>Of is het:</span>
+                        {choices.filter((c) => c.ref !== popup.ref).map((c) => (
+                          <button key={c.ref} type="button" className="chip" onClick={() => setPopup(c)}>
+                            {c.name} · {c.code}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="scan-popup-actions">
                       <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, "normal", language, condition); closePopup(); }}>
                         Toevoegen
