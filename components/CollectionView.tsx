@@ -46,7 +46,7 @@ export default function CollectionView({ initialFilter }: { initialFilter: Filte
 
       <section className="stats">
         <div className="stat"><strong>{count}</strong><span>kaarten</span></div>
-        <div className="stat"><strong>{setCount}</strong><span>sets</span></div>
+        <Link href="/collectie/sets" className="stat stat-link"><strong>{setCount}</strong><span>sets ›</span></Link>
         <div className="stat"><strong>{entries.length}</strong><span>unieke</span></div>
       </section>
 

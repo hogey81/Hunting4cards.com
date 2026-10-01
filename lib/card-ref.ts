@@ -19,3 +19,9 @@ export function cardHref(ref: string) {
 export function setHref(region: Region, setId: string) {
   return region === "ja" ? `/jp/sets/${encodeURIComponent(setId)}` : `/sets/${encodeURIComponent(setId)}`;
 }
+
+// The sets the collection has cards from, as references like "me05" or "ja:M4"
+// (card references are "<set>-<number>").
+export function mySetRefs(entries: { cardId: string }[]) {
+  return [...new Set(entries.map((e) => e.cardId.slice(0, Math.max(0, e.cardId.lastIndexOf("-")))).filter(Boolean))];
+}
