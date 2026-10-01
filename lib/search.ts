@@ -23,6 +23,12 @@ export async function findByCode(q: string): Promise<Results> {
   };
 }
 
+// The card with this number in one international set.
+export async function findInSet(setId: string, number: string): Promise<Results> {
+  const cards = await cardsInSets([setId], "en");
+  return { en: cards.filter((c) => sameCardNumber(c.localId, number)), ja: [] };
+}
+
 // "PBL 048" (international) or "M4 001" (Japanese) finds that card. A bare code lists
 // the whole set, but only when no card is named like it ("Mew" is also a set code).
 // A name searches both: English names are translated to find the Japanese cards too.

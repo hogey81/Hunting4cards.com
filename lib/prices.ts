@@ -1,7 +1,10 @@
 import type { Card, CardmarketPricing, Region } from "./tcgdex";
 import { toRef } from "./card-ref";
 
-export type Variant = "normal" | "reverse";
+// "holo": a card whose normal print is holographic (holo rares); on Cardmarket it
+// has the normal price. "reverse": the reverse holo print, with its own price.
+export type Variant = "normal" | "holo" | "reverse";
+export const VARIANT_NAMES: Record<Variant, string> = { normal: "Normaal", holo: "Holo", reverse: "Reverse holo" };
 
 export type PriceInfo = {
   trend: number | null;

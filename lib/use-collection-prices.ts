@@ -42,7 +42,7 @@ export function useCollectionPrices() {
 
   const rows: CollectionRow[] = entries.map((e) => {
     const card = prices[e.cardId];
-    const p = card ? card[e.variant] : null;
+    const p = card ? card[e.variant === "reverse" ? "reverse" : "normal"] : null; // a holo print has the normal price
     return { entry: e, card, price: p?.trend ?? null, change: p ? trendChange(p) : null, updated: p?.updated ?? null };
   });
 

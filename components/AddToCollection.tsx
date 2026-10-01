@@ -2,9 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
-import type { Variant } from "@/lib/prices";
+import { VARIANT_NAMES, type Variant } from "@/lib/prices";
 
-export default function AddToCollection({ cardRef, japanese, hasReverse }: { cardRef: string; japanese: boolean; hasReverse: boolean }) {
+export default function AddToCollection({
+  cardRef,
+  japanese,
+  hasReverse,
+  hasHolo = false,
+}: {
+  cardRef: string;
+  japanese: boolean;
+  hasReverse: boolean;
+  hasHolo?: boolean;
+}) {
   const { entries, add, setQuantity } = useCollection();
   const [picked, setPicked] = useState<Language>("EN");
   const [variant, setVariant] = useState<Variant>("normal");
@@ -12,6 +22,7 @@ export default function AddToCollection({ cardRef, japanese, hasReverse }: { car
   useEffect(() => setCondition(lastCondition()), []);
   const language: Language = japanese ? "JP" : picked;
   const current = entries.find((e) => e.key === entryKey(cardRef, variant, language, condition));
+  const variants: Variant[] = ["normal", ...(hasHolo ? ["holo" as const] : []), ...(hasReverse ? ["reverse" as const] : [])];
   const conditionInfo = CONDITIONS.find((c) => c.code === condition)!;
 
   return (
@@ -28,13 +39,13 @@ export default function AddToCollection({ cardRef, japanese, hasReverse }: { car
           </div>
         </fieldset>
       )}
-      {hasReverse && (
+      {variants.length > 1 && (
         <fieldset>
           <legend>Versie</legend>
-          <div className="seg seg-2">
-            {(["normal", "reverse"] as Variant[]).map((v) => (
+          <div className={variants.length > 2 ? "seg seg-3" : "seg seg-2"}>
+            {variants.map((v) => (
               <button key={v} type="button" className={v === variant ? "chip on" : "chip"} aria-pressed={v === variant} onClick={() => setVariant(v)}>
-                {v === "normal" ? "Normaal" : "Reverse holo"}
+                {VARIANT_NAMES[v]}
               </button>
             ))}
           </div>

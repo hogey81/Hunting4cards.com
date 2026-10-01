@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import CardImg from "./CardImg";
 import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Condition, type Language } from "@/lib/collection";
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
+import { VARIANT_NAMES, type Variant } from "@/lib/prices";
+import { CLEANUPS, cleanUp, describeCamera, focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
 
 type Phase =
   | { step: "idle" }
@@ -30,6 +33,8 @@ async function prepare(file: File, top = 0, height = 1, maxSide = 1800, maxZoom 
   return canvas;
 }
 
+type ScanAnswer = { cards: ScanMatch[]; exact: boolean; sure?: boolean; read: string; language: string };
+
 type OcrWorker = Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>;
 
 // Text recognition takes a few seconds to load, so it starts as soon as the scan
@@ -52,9 +57,23 @@ function ocrWorker() {
   return ocr;
 }
 
+// The live camera has a reader of its own, set up once for code characters only.
+// (Three readers side by side made a phone take 3 to 13 seconds per frame.)
+let live: Promise<OcrWorker> | null = null;
+function liveWorker() {
+  live ??= import("tesseract.js").then(async ({ createWorker }) => {
+    const w = await createWorker("eng", 1, { workerPath: "/ocr/worker.min.js", corePath: "/ocr", langPath: "/ocr" });
+    await w.setParameters({ tessedit_char_whitelist: CODE_CHARS });
+    return w;
+  });
+  live.catch(() => (live = null));
+  return live;
+}
+
 // Reads parts of the photo. Each part is [top, height, maxSide, maxZoom].
 async function readParts(file: File, parts: [number, number, number, number][], onProgress: (p: number) => void) {
   const worker = await ocrWorker();
+  await worker.setParameters({ tessedit_char_whitelist: "" }); // the live camera limits the letters; a photo needs all
   const texts: string[] = [];
   for (const [i, [top, height, maxSide, maxZoom]] of parts.entries()) {
     onOcrProgress = (p) => onProgress((i + p) / parts.length);
@@ -80,30 +99,52 @@ const LANGUAGE_NAMES: Record<string, string> = {
   EN: "Engels", NL: "Nederlands", DE: "Duits", FR: "Frans", IT: "Italiaans", ES: "Spaans", PT: "Portugees", JP: "Japans",
 };
 
-// The card outline shown over the live camera, as a share of the frame.
-const GUIDE_WIDTH = 0.78;
-const CARD_RATIO = 88 / 63;
+// The live camera only reads the code at the bottom left of the card
+// ("PFL EN 120/094"): a short line of plain print, which reads far more reliably
+// than the whole card. The outline is a strip (as a share of the frame; height / width).
+const GUIDE_WIDTH = 0.7;
+const GUIDE_RATIO = 1 / 4;
 
-// Cuts the part of the video frame inside the card outline (the video is shown
-// with object-fit: cover, so the visible part is centred) and returns it as a photo.
-function grabCard(video: HTMLVideoElement): Promise<Blob | null> {
-  const box = video.getBoundingClientRect();
-  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
-  let gw = box.width * GUIDE_WIDTH;
-  let gh = gw * CARD_RATIO;
-  if (gh > box.height * 0.92) {
-    gh = box.height * 0.92;
-    gw = gh / CARD_RATIO;
-  }
-  // A small margin, so a card held slightly off-centre is still complete.
-  const w = Math.min(video.videoWidth, (gw * 1.08) / scale);
-  const h = Math.min(video.videoHeight, (gh * 1.06) / scale);
+// Cuts the part of the video frame inside the outline (the video is shown
+// with object-fit: cover, so the visible part is centred). `screenZoom`: how much
+// the video is enlarged on screen when the camera can't zoom by itself.
+function grabGuide(video: HTMLVideoElement, screenZoom: number) {
+  // The size before the on-screen enlargement (a CSS transform, which the bounding box includes).
+  const outer = video.getBoundingClientRect();
+  const box = { width: outer.width / screenZoom, height: outer.height / screenZoom };
+  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight) * screenZoom;
+  const gw = box.width * GUIDE_WIDTH;
+  const gh = gw * GUIDE_RATIO;
+  // A margin, so a code held slightly off-centre is still complete.
+  const w = Math.min(video.videoWidth, (gw * 1.1) / scale);
+  const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(w);
-  canvas.height = Math.round(h);
-  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, w, h);
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  // About 800 pixels wide: the code is then some 30 pixels high, what the reader
+  // likes best. Larger pictures read no better but much slower on a phone.
+  const up = Math.min(3, 800 / w);
+  canvas.width = Math.round(w * up);
+  canvas.height = Math.round(h * up);
+  canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
+
+// Only what a card code is made of: fewer wrong guesses from the text reader.
+const CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ ";
+
+// The part of the text that is a card code: "PFL DE 120/094", "120/094", or
+// "SVP EN 085" on promos. Strict on purpose: a carpet or a table read as text
+// easily gives something like "E1 047", which is also a real card.
+const LANG = "(?:EN|DE|FR|IT|ES|PT|NL)";
+const CODE_RE = new RegExp(`(?:\\b[A-Z0-9]{2,6}\\s+)?(?:${LANG}\\s+)?\\d{1,3}\\s*/\\s*\\d{2,3}\\b`);
+const codeIn = (text: string) => text.match(CODE_RE)?.[0] ?? null;
+// The numbers alone ("120/094"): the same card read twice in a row, whatever the
+// letters came out as, before it is looked up.
+const numbersOf = (code: string) => code.match(/\d{1,3}\s*\/\s*\d{2,3}/)?.[0].replace(/\s/g, "") ?? code;
+
+const ZOOMS = [1, 1.5, 2, 3];
+// Zoomed in, the phone is held further away: most phones can't focus closer than
+// about 10 cm. Only when the camera zooms by itself: enlarging on screen makes the picture blurrier.
+const START_ZOOM = 2;
 
 export default function Scanner() {
   const camera = useRef<HTMLInputElement>(null);
@@ -117,6 +158,29 @@ export default function Scanner() {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [live, setLive] = useState(false);
+  const [zoom, setZoom] = useState(START_ZOOM);
+  const [hardwareZoom, setHardwareZoom] = useState(false);
+  const [seen, setSeen] = useState("");
+  const [found, setFound] = useState("");
+  // The card just found, shown in front of the camera; reading waits while it is open.
+  const [popup, setPopup] = useState<ScanMatch | null>(null);
+  const [popupSure, setPopupSure] = useState(true);
+  const [choices, setChoices] = useState<ScanMatch[]>([]);
+  const [variant, setVariant] = useState<Variant>("normal");
+  // What the camera last read and what that found, shown small under the picture:
+  // a screenshot then tells where scanning gets stuck on a phone.
+  const [debug, setDebug] = useState("");
+  const [lastCode, setLastCode] = useState("");
+  const paused = useRef(false);
+  const closedAt = useRef(0);
+  const closePopup = () => {
+    closedAt.current = Date.now();
+    setPopup(null);
+    paused.current = false;
+  };
+  const results = useRef<HTMLElement>(null);
+  const [cameraInfo, setCameraInfo] = useState("");
+  const screenZoom = hardwareZoom ? 1 : zoom;
 
   function stopCamera() {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -127,6 +191,9 @@ export default function Scanner() {
   useEffect(() => {
     mounted.current = true;
     ocrWorker().catch(() => {});
+    // Start the camera's readers and wake the server now, so the first card isn't slow.
+    liveWorker().catch(() => {});
+    fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "" }) }).catch(() => {});
     return () => {
       mounted.current = false;
       stopCamera();
@@ -143,12 +210,15 @@ export default function Scanner() {
       return;
     }
     try {
-      stream.current = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
+      stream.current = await openBackCamera();
       // Left the page while the camera was starting: switch it off again.
       if (!mounted.current) return stopCamera();
+      const track = stream.current.getVideoTracks()[0];
+      const canZoom = await tuneCamera(track);
+      const hw = canZoom && (await setCameraZoom(track, START_ZOOM));
+      setHardwareZoom(hw);
+      setZoom(hw ? START_ZOOM : 1);
+      setCameraInfo(describeCamera(track, hw));
       setLive(true);
       setPhase({ step: "idle" });
     } catch {
@@ -170,12 +240,140 @@ export default function Scanner() {
     }
   }, [live]);
 
-  async function capture() {
-    if (!video.current?.videoWidth) return;
-    const blob = await grabCard(video.current);
-    stopCamera();
-    if (blob) onPhoto(new File([blob], "kaart.jpg", { type: "image/jpeg" }));
+  async function changeZoom() {
+    const next = ZOOMS[(ZOOMS.indexOf(zoom) + 1) % ZOOMS.length];
+    setZoom(next);
+    const track = stream.current?.getVideoTracks()[0];
+    if (track && hardwareZoom) await setCameraZoom(track, next);
   }
+
+  function tapToFocus(e: React.MouseEvent<HTMLVideoElement>) {
+    const track = stream.current?.getVideoTracks()[0];
+    if (!track) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    focusAt(track, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  }
+
+  // Shows the card in the middle of the screen; `sure` false asks "Is dit je kaart?".
+  function showCard(data: { cards: ScanMatch[]; exact: boolean; read: string; language: string }, sure: boolean) {
+    setPhoto(null);
+    const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? (data.language as Language) : "EN";
+    setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
+    navigator.vibrate?.(60);
+    setFound(data.cards[0].name);
+    paused.current = true;
+    setPopupSure(sure);
+    setChoices(data.cards.slice(0, 4));
+    setVariant("normal");
+    setPopup(data.cards[0]);
+  }
+
+  // The "Zoek deze code" button: look up the last code read, whatever it is.
+  async function searchLastCode() {
+    if (!lastCode) return;
+    setDebug(`zoeken naar ${lastCode}…`);
+    const res = await post(lastCode).catch(() => null);
+    const data = res?.ok ? await res.json().catch(() => null) : null;
+    if (data?.cards?.length) showCard(data, !!data.exact);
+    else setDebug(`${lastCode}: ${res ? (res.ok ? "geen kaart gevonden" : `fout ${res.status}`) : "geen verbinding"}`);
+  }
+
+  // While the camera runs, keep reading the strip until a code finds the card:
+  // no button to press, and a blurry frame just means the next one is tried.
+  const zoomRef = useRef(screenZoom);
+  zoomRef.current = screenZoom;
+  useEffect(() => {
+    if (!live) return;
+    let active = true;
+    let last = "";
+    let lastSeenAt = 0;
+    // The numbers read in the last frames: each frame is cleaned up differently and
+    // often only one of those reads the code, so "read twice" counts recent frames,
+    // not only the one just before.
+    const recent: string[] = [];
+    let posted = "";
+    let missed = ""; // read clearly, but no card found for it
+    // Answers per code read, so the same code isn't asked again.
+    const answers = new Map<string, { res: Response | null; data: ScanAnswer | null }>();
+    (async () => {
+      const worker = await liveWorker().catch(() => null);
+      let frame = 0;
+      while (active && worker) {
+        await new Promise((r) => setTimeout(r, 15));
+        const v = video.current;
+        if (!active || !v?.videoWidth || paused.current) continue;
+        let lines: string[];
+        const started = performance.now();
+        try {
+          // Each frame cleaned up the next way (see CLEANUPS).
+          const how = CLEANUPS[frame++ % CLEANUPS.length];
+          lines = [(await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()];
+        } catch (e) {
+          setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
+          continue; // one failed frame must not stop the scanning
+        }
+        if (!active) return;
+        // The read with a code, preferring one with the set letters before it; the
+        // other reads go along, the set code may be only in one of them.
+        const withCode = lines.filter((l) => codeIn(l)).sort((a, b) => codeIn(b)!.length - codeIn(a)!.length);
+        const line = [...withCode, ...lines.filter((l) => !withCode.includes(l))].join(" \n ");
+        const code = withCode.length ? codeIn(withCode[0]) : null;
+        // Two cleanups reading the same numbers in one frame is as good as two frames.
+        const agree = withCode.length > 1 && withCode.filter((l) => numbersOf(codeIn(l)!) === numbersOf(code!)).length > 1;
+        const ms = Math.round(performance.now() - started);
+        if (line.trim()) setDebug(`gelezen in ${ms} ms: "${line.replace(/ \n /g, " | ").slice(0, 40)}"`);
+        if (code) setLastCode(code);
+        setSeen(
+          !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
+        );
+        const numbers = code ? numbersOf(code) : "";
+        recent.push(numbers);
+        if (recent.length > 9) recent.shift();
+        const steady = !!code && (agree || recent.filter((n) => n === numbers).length >= 2);
+        // The card just shown is skipped while it stays in view, so it doesn't pop up
+        // again at once; scanned again after it was away a moment, or a few seconds
+        // later, it is shown again (the same card twice, or a second copy).
+        if (last && numbers === last) {
+          const now = Date.now();
+          // (While the card was shown nothing was read: count from when it was closed.)
+          const away = now - Math.max(lastSeenAt, closedAt.current) > 1500;
+          lastSeenAt = now;
+          if (!away && now - closedAt.current < 4000) continue;
+          last = "";
+          posted = "";
+        }
+        // Nothing read, or this exact text already looked up.
+        if (!code || numbers === last || (code === posted && !steady)) continue;
+        posted = code;
+        // The whole line: the set code may stand apart from the number ("G SVIEN 047/198").
+        let answer = answers.get(code);
+        if (!answer) {
+          const res = await post(line).catch(() => null);
+          answer = { res, data: res?.ok ? await res.json().catch(() => null) : null };
+          if (answer.data) answers.set(code, answer);
+        }
+        const { res, data } = answer;
+        if (!active) return;
+        setDebug(`${code} → ${!res ? "geen verbinding" : !res.ok ? `fout ${res.status}` : `${data?.cards?.length ?? 0} kaart(en)${data?.exact ? ", precies" : ""}${data?.sure ? ", zeker" : ""}`}`);
+        // Exactly one card: shown at once when the set code matched exactly, else
+        // when read twice. Read twice but not one card: the best guess, as a question.
+        const exact = !!data?.exact && (data.sure || steady);
+        if (!data?.cards?.length || !(exact || steady)) {
+          if (steady && data) missed = numbers;
+          continue;
+        }
+        last = numbers;
+        lastSeenAt = Date.now();
+        showCard(data, exact);
+      }
+    })();
+    return () => {
+      active = false;
+      setSeen("");
+      closePopup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
 
   // `onlyIfExact`: a first try, shown only when it found the one card.
   async function lookup(request: Promise<Response>, onlyIfExact = false) {
@@ -236,9 +434,89 @@ export default function Scanner() {
       <div className={live ? "scan-frame live" : "scan-frame"}>
         {live ? (
           <>
-            <video ref={video} className="scan-video" playsInline muted />
-            <div className="scan-guide" aria-hidden="true" />
-            <span className="scan-guide-text">Vul het kader met de kaart</span>
+            <video
+              ref={video}
+              className="scan-video"
+              style={screenZoom > 1 ? { transform: `scale(${screenZoom})` } : undefined}
+              playsInline
+              muted
+              onClick={tapToFocus}
+            />
+            <div className="scan-guide code" aria-hidden="true" />
+            <div className="scan-howto">
+              <svg width="30" height="42" viewBox="0 0 30 42" aria-hidden="true">
+                <rect x="1" y="1" width="28" height="40" rx="3" fill="none" stroke="#fff" strokeWidth="2" />
+                <rect x="3" y="34" width="14" height="5" rx="1.5" fill="#ffd84d" />
+              </svg>
+              <span>
+                Houd het balkje boven de <strong>code linksonder</strong> op je kaart
+                <br />
+                bv. <strong>PFL EN 120/094</strong>
+              </span>
+            </div>
+            <span className="scan-seen" role="status">
+              {seen
+                ? seen
+                : found
+                  ? `✓ ${found} gevonden · leg de volgende kaart neer`
+                  : "Zoeken naar de code onderaan de kaart…"}
+              {cameraInfo && <small>{cameraInfo}</small>}
+              {debug && <small>{debug}</small>}
+            </span>
+            {popup && (() => {
+              const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
+              // On the page itself, so no part of the scan page can clip or cover it.
+              return createPortal(
+                <div className="scan-popup-backdrop">
+                  <div className="scan-popup" role="dialog" aria-label="Kaart gevonden">
+                    <div className="scan-popup-card">
+                      <div className="tile-img">
+                        <CardImg src={popup.image} name={popup.name} code={popup.code} />
+                      </div>
+                      <div className="scan-popup-info">
+                        <span className="scan-popup-found">{popupSure ? "✓ Gevonden" : "Is dit je kaart?"}</span>
+                        <strong>{popup.name}</strong>
+                        <span className="tile-meta">{popup.code} · {LANGUAGE_NAMES[language]}</span>
+                      </div>
+                    </div>
+                    <div className="scan-popup-pick seg-cond" role="group" aria-label="Staat van de kaart">
+                      {CONDITIONS.map((c) => (
+                        <button key={c.code} type="button" title={c.name} aria-pressed={c.code === condition} className={c.code === condition ? "chip on" : "chip"} onClick={() => setCondition(c.code)}>
+                          {c.code}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="scan-popup-pick seg-ver" role="group" aria-label="Versie">
+                      {(Object.keys(VARIANT_NAMES) as Variant[]).map((v) => (
+                        <button key={v} type="button" aria-pressed={v === variant} className={v === variant ? "chip on" : "chip"} onClick={() => setVariant(v)}>
+                          {VARIANT_NAMES[v]}
+                        </button>
+                      ))}
+                    </div>
+                    {!popupSure && choices.length > 1 && (
+                      <div className="scan-popup-choices">
+                        <span>Of is het:</span>
+                        {choices.filter((c) => c.ref !== popup.ref).map((c) => (
+                          <button key={c.ref} type="button" className="chip" onClick={() => setPopup(c)}>
+                            {c.name} · {c.code}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="scan-popup-actions">
+                      <button type="button" className="btn btn-primary" onClick={() => { add(popup.ref, variant, language, condition); closePopup(); }}>
+                        Toevoegen
+                      </button>
+                      <button type="button" className="btn" onClick={closePopup}>Volgende kaart</button>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              );
+            })()}
+            <button type="button" className="scan-zoom" onClick={changeZoom} aria-label={`Zoom ${zoom}×, tik voor meer`}>
+              {zoom}×
+            </button>
           </>
         ) : photo ? <img src={photo} alt="Jouw foto" /> : (
           <div className="scan-empty">
@@ -258,11 +536,18 @@ export default function Scanner() {
 
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={gallery} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+      {live && lastCode && !popup && (
+        <button type="button" className="btn btn-primary scan-search" onClick={searchLastCode}>
+          Zoek {lastCode}
+        </button>
+      )}
       <div className="scan-actions">
         {live ? (
           <>
-            <button type="button" className="btn btn-primary" onClick={capture}>Scan kaart</button>
             <button type="button" className="btn" onClick={stopCamera}>Stoppen</button>
+            <button type="button" className="btn" onClick={() => { stopCamera(); gallery.current?.click(); }}>
+              Kies uit galerij
+            </button>
           </>
         ) : (
           <>
@@ -279,7 +564,7 @@ export default function Scanner() {
       {phase.step === "error" && <p className="muted">{phase.message}</p>}
 
       {phase.step === "done" && (
-        <section className="scan-results">
+        <section className="scan-results" ref={results}>
           <p className="muted">
             Gelezen: <strong>{phase.read}</strong>.{" "}
             {phase.cards.length === 0
