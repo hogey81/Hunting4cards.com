@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useCollection, type CollectionEntry } from "./collection";
+import { mySetRefs } from "./card-ref";
 import { trendChange, type PricedCard } from "./prices";
 
 export type CollectionRow = {
@@ -54,7 +55,7 @@ export function useCollectionPrices() {
     loading: loaded && !!idKey && !fetchedAt && !error,
     total: rows.reduce((sum, r) => sum + (r.price ?? 0) * r.entry.quantity, 0),
     count: entries.reduce((n, e) => n + e.quantity, 0),
-    setCount: new Set(rows.map((r) => r.card?.setId).filter(Boolean)).size,
+    setCount: mySetRefs(entries).length,
     latest: rows.map((r) => r.updated).filter(Boolean).sort().pop() ?? null,
   };
 }
