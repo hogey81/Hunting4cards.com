@@ -83,13 +83,15 @@ export function describeCamera(track: MediaStreamTrack, hardwareZoom: boolean) {
   return `${width ?? "?"}×${height ?? "?"} · ${af} · ${hardwareZoom ? "zoom camera" : "zoom scherm"}`;
 }
 
-// Ways to clean up a strip before reading it. The code is small black print on a
-// light border on most cards, white print on dark art on others, and the camera's
-// colours confuse the text reader: each frame is read with the next of these.
-export const CLEANUPS = ["grey", "threshold", "inverted"] as const;
+// Ways to clean up a strip before reading it; each frame is read with the next of
+// these. Grey with strong contrast turns the glitter of holo cards white and keeps
+// the black print black: on a phone video of a holo card only these read the code
+// (plain grey or a local threshold read the glitter as letters). "inverted" is for
+// white print on dark art.
+export const CLEANUPS = ["contrast", "strong", "inverted"] as const;
 export type Cleanup = (typeof CLEANUPS)[number];
 
-export function cleanUp(canvas: HTMLCanvasElement, how: Cleanup) {
+export function cleanUp(canvas: HTMLCanvasElement, how: Cleanup | "threshold" | "grey") {
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   const { width: w, height: h } = canvas;
   const img = ctx.getImageData(0, 0, w, h);
@@ -97,7 +99,12 @@ export function cleanUp(canvas: HTMLCanvasElement, how: Cleanup) {
   const grey = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) grey[i] = px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11;
   let out = grey;
-  if (how === "inverted") out = grey.map((g) => 255 - g);
+  // (g - middle) × factor + middle, plus a little brightness: as ffmpeg's eq filter,
+  // with which these values were tried on frames of a phone video.
+  const stretch = (factor: number, lift: number) => grey.map((g) => Math.max(0, Math.min(255, (g - 127.5) * factor + 127.5 + lift * 255)));
+  if (how === "contrast") out = stretch(2, 0.1);
+  if (how === "strong") out = stretch(3, 0);
+  if (how === "inverted") out = stretch(2, 0).map((g) => 255 - g);
   if (how === "threshold") {
     // Black where a pixel is clearly darker than its surroundings (a running
     // mean over a square), white elsewhere: works on any background colour.

@@ -57,21 +57,15 @@ function ocrWorker() {
   return ocr;
 }
 
-// The live camera reads each frame three times at once, each cleaned up another
-// way (see CLEANUPS), on workers of its own: most frames only one of those reads
-// the code, so one after the other took three frames to find it.
-let live: Promise<OcrWorker[]> | null = null;
-function liveWorkers() {
-  live ??= import("tesseract.js").then(({ createWorker }) =>
-    Promise.all(
-      CLEANUPS.map(async () => {
-        const w = await createWorker("eng", 1, { workerPath: "/ocr/worker.min.js", corePath: "/ocr", langPath: "/ocr" });
-        // One line of code characters: faster, and fewer wrong guesses.
-        await w.setParameters({ tessedit_char_whitelist: CODE_CHARS });
-        return w;
-      }),
-    ),
-  );
+// The live camera has a reader of its own, set up once for code characters only.
+// (Three readers side by side made a phone take 3 to 13 seconds per frame.)
+let live: Promise<OcrWorker> | null = null;
+function liveWorker() {
+  live ??= import("tesseract.js").then(async ({ createWorker }) => {
+    const w = await createWorker("eng", 1, { workerPath: "/ocr/worker.min.js", corePath: "/ocr", langPath: "/ocr" });
+    await w.setParameters({ tessedit_char_whitelist: CODE_CHARS });
+    return w;
+  });
   live.catch(() => (live = null));
   return live;
 }
@@ -125,8 +119,9 @@ function grabGuide(video: HTMLVideoElement, screenZoom: number) {
   const w = Math.min(video.videoWidth, (gw * 1.1) / scale);
   const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
-  // Enlarged: small print reads better when the letters are big.
-  const up = Math.min(3, 1400 / w);
+  // About 800 pixels wide: the code is then some 30 pixels high, what the reader
+  // likes best. Larger pictures read no better but much slower on a phone.
+  const up = Math.min(3, 800 / w);
   canvas.width = Math.round(w * up);
   canvas.height = Math.round(h * up);
   canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
@@ -197,7 +192,7 @@ export default function Scanner() {
     mounted.current = true;
     ocrWorker().catch(() => {});
     // Start the camera's readers and wake the server now, so the first card isn't slow.
-    liveWorkers().catch(() => {});
+    liveWorker().catch(() => {});
     fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "" }) }).catch(() => {});
     return () => {
       mounted.current = false;
@@ -301,17 +296,18 @@ export default function Scanner() {
     // Answers per code read, so the same code isn't asked again.
     const answers = new Map<string, { res: Response | null; data: ScanAnswer | null }>();
     (async () => {
-      const workers = await liveWorkers().catch(() => null);
-      while (active && workers) {
+      const worker = await liveWorker().catch(() => null);
+      let frame = 0;
+      while (active && worker) {
         await new Promise((r) => setTimeout(r, 15));
         const v = video.current;
         if (!active || !v?.videoWidth || paused.current) continue;
         let lines: string[];
         const started = performance.now();
         try {
-          lines = await Promise.all(
-            CLEANUPS.map(async (how, i) => (await workers[i].recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()),
-          );
+          // Each frame cleaned up the next way (see CLEANUPS).
+          const how = CLEANUPS[frame++ % CLEANUPS.length];
+          lines = [(await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()];
         } catch (e) {
           setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
           continue; // one failed frame must not stop the scanning
