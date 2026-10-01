@@ -8,7 +8,7 @@ import { CONDITIONS, LANGUAGES, entryKey, lastCondition, useCollection, type Con
 import { cardHref, parseRef } from "@/lib/card-ref";
 import type { ScanMatch } from "@/lib/scan-text";
 import { VARIANT_NAMES, type Variant } from "@/lib/prices";
-import { CLEANUPS, cleanUp, describeCamera, focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
+import { CLEANUPS, cleanUp, focusAt, openBackCamera, setCameraZoom, tuneCamera } from "@/lib/camera";
 
 type Phase =
   | { step: "idle" }
@@ -198,8 +198,8 @@ export default function Scanner() {
   const [variant, setVariant] = useState<Variant>("normal");
   // What the camera last read and what that found, shown small under the picture:
   // a screenshot then tells where scanning gets stuck on a phone.
-  const [debug, setDebug] = useState("");
-  const [reader, setReader] = useState("");
+  // What the "Zoek" button found out, when it found no card.
+  const [notice, setNotice] = useState("");
   const [lastCode, setLastCode] = useState("");
   const paused = useRef(false);
   const closedAt = useRef(0);
@@ -209,7 +209,6 @@ export default function Scanner() {
     paused.current = false;
   };
   const results = useRef<HTMLElement>(null);
-  const [cameraInfo, setCameraInfo] = useState("");
   const screenZoom = hardwareZoom ? 1 : zoom;
 
   function stopCamera() {
@@ -248,7 +247,6 @@ export default function Scanner() {
       const hw = canZoom && (await setCameraZoom(track, START_ZOOM));
       setHardwareZoom(hw);
       setZoom(hw ? START_ZOOM : 1);
-      setCameraInfo(describeCamera(track, hw));
       setLive(true);
       setPhase({ step: "idle" });
     } catch {
@@ -301,11 +299,13 @@ export default function Scanner() {
   // The "Zoek deze code" button: look up the last code read, whatever it is.
   async function searchLastCode() {
     if (!lastCode) return;
-    setDebug(`zoeken naar ${lastCode}…`);
+    setNotice(`zoeken naar ${lastCode}…`);
     const res = await post(lastCode).catch(() => null);
     const data = res?.ok ? await res.json().catch(() => null) : null;
-    if (data?.cards?.length) showCard(data, !!data.exact);
-    else setDebug(`${lastCode}: ${res ? (res.ok ? "geen kaart gevonden" : `fout ${res.status}`) : "geen verbinding"}`);
+    if (data?.cards?.length) {
+      setNotice("");
+      showCard(data, !!data.exact);
+    } else setNotice(`${lastCode}: ${res ? (res.ok ? "geen kaart gevonden" : `fout ${res.status}`) : "geen verbinding"}`);
   }
 
   // While the camera runs, keep reading the strip until a code finds the card:
@@ -328,14 +328,12 @@ export default function Scanner() {
     (async () => {
       let phone = phoneReader();
       let worker = phone ? null : await liveWorker().catch(() => null);
-      setReader(phone ? "telefoon" : "browser");
       let frame = 0;
       while (active && (phone || worker)) {
         await new Promise((r) => setTimeout(r, 15));
         const v = video.current;
         if (!active || !v?.videoWidth || paused.current) continue;
         let lines: string[];
-        const started = performance.now();
         try {
           if (phone) {
             // Lines of text found, top to bottom, left to right.
@@ -351,11 +349,9 @@ export default function Scanner() {
           if (phone) {
             // The phone's reader doesn't work here after all: use the other one.
             phone = null;
-            setReader("browser");
             worker = await liveWorker().catch(() => null);
             continue;
           }
-          setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
           continue; // one failed frame must not stop the scanning
         }
         if (!active) return;
@@ -366,8 +362,6 @@ export default function Scanner() {
         const code = withCode.length ? codeIn(withCode[0]) : null;
         // Two cleanups reading the same numbers in one frame is as good as two frames.
         const agree = withCode.length > 1 && withCode.filter((l) => numbersOf(codeIn(l)!) === numbersOf(code!)).length > 1;
-        const ms = Math.round(performance.now() - started);
-        if (line.trim()) setDebug(`gelezen in ${ms} ms: "${line.replace(/ \n /g, " | ").slice(0, 40)}"`);
         if (code) setLastCode(code);
         setSeen(
           !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
@@ -400,7 +394,6 @@ export default function Scanner() {
         }
         const { res, data } = answer;
         if (!active) return;
-        setDebug(`${code} → ${!res ? "geen verbinding" : !res.ok ? `fout ${res.status}` : `${data?.cards?.length ?? 0} kaart(en)${data?.exact ? ", precies" : ""}${data?.sure ? ", zeker" : ""}`}`);
         // Exactly one card: shown at once when the set code matched exactly, else
         // when read twice. Read twice but not one card: the best guess, as a question.
         const exact = !!data?.exact && (data.sure || steady);
@@ -506,8 +499,6 @@ export default function Scanner() {
                 : found
                   ? `✓ ${found} gevonden · leg de volgende kaart neer`
                   : "Zoeken naar de code onderaan de kaart…"}
-              {cameraInfo && <small>{cameraInfo}</small>}
-              {debug && <small>{reader && `lezer: ${reader} · `}{debug}</small>}
             </span>
             {popup && (() => {
               const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
@@ -587,6 +578,7 @@ export default function Scanner() {
           Zoek {lastCode}
         </button>
       )}
+      {live && notice && !popup && <p className="scan-notice">{notice}</p>}
       <div className="scan-actions">
         {live ? (
           <>

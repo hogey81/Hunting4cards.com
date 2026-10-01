@@ -313,6 +313,7 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-popup-found { color: var(--up); font-weight: 800; font-size: 13px; }
 .scan-popup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .scan-search { width: 100%; margin-bottom: 10px; }
+.scan-notice { margin: -4px 0 10px; text-align: center; font-size: 14px; color: var(--muted); }
 .scan-popup-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .scan-popup-choices .chip { font: inherit; font-weight: 700; color: var(--ink); background: var(--bg, #f4f1ea); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
 .seg-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
