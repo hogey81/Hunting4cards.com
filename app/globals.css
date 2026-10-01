@@ -322,3 +322,9 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-popup-pick.seg-ver { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .scan-popup-pick .chip { min-height: 56px; padding: 0 6px; border-radius: 14px; font-size: 20px; font-weight: 800; }
 .scan-popup-pick.seg-ver .chip { font-size: 16px; }
+.owned-veil { position: absolute; inset: 0; background: rgba(236, 234, 229, 0.62); pointer-events: none; }
+.owned-check {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; border-radius: 28px;
+  background: var(--up); color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); pointer-events: none;
+}
