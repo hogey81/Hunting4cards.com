@@ -74,15 +74,6 @@ export async function focusAt(track: MediaStreamTrack, x: number, y: number) {
   setTimeout(() => apply(track, { focusMode: "continuous" }), 1500);
 }
 
-// A short line about the camera in use, shown small under the picture, so a
-// blurry camera can be diagnosed from a screenshot.
-export function describeCamera(track: MediaStreamTrack, hardwareZoom: boolean) {
-  const { width, height } = track.getSettings();
-  const focus = caps(track).focusMode;
-  const af = !focus ? "autofocus onbekend" : focus.includes("continuous") ? "autofocus aan" : "geen autofocus";
-  return `${width ?? "?"}×${height ?? "?"} · ${af} · ${hardwareZoom ? "zoom camera" : "zoom scherm"}`;
-}
-
 // Ways to clean up a strip before reading it; each frame is read with the next of
 // these. Grey with strong contrast turns the glitter of holo cards white and keeps
 // the black print black: on a phone video of a holo card only these read the code
