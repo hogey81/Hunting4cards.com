@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hunting4Cards</string>
+    <string name="title_activity_main">Hunting4Cards</string>
+    <string name="package_name">com.hunting4cards.app</string>
+    <string name="custom_url_scheme">com.hunting4cards.app</string>
+</resources>

@@ -1,0 +1,12 @@
+{
+  "appId": "com.hunting4cards.app",
+  "appName": "Hunting4Cards",
+  "webDir": "www",
+  "server": {
+    "url": "https://hunting4cards-com.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

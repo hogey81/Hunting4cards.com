@@ -57,6 +57,35 @@ function ocrWorker() {
   return ocr;
 }
 
+// The phone's own text recognition, where the browser offers it (Chrome on
+// Android with "Experimental Web Platform features" on in chrome://flags). Much
+// faster and better than the reader below; null where it isn't there or fails.
+type DetectedText = { rawValue: string; boundingBox: DOMRectReadOnly };
+type AppCardReader = { read(options: { image: string }): Promise<{ text: string; lines: { text: string; x?: number; y?: number }[] }> };
+type TextDetectorLike = { detect(source: CanvasImageSource): Promise<DetectedText[]> };
+function phoneReader(): TextDetectorLike | null {
+  // In our Android app: its CardReader plugin (mobile/android, ML Kit on the phone).
+  const app = (globalThis as unknown as {
+    Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { CardReader?: AppCardReader } };
+  }).Capacitor;
+  const cardReader = app?.isNativePlatform?.() ? app.Plugins?.CardReader : undefined;
+  if (cardReader) {
+    return {
+      async detect(source) {
+        const canvas = source as HTMLCanvasElement;
+        const { lines } = await cardReader.read({ image: canvas.toDataURL("image/jpeg", 0.9) });
+        return lines.map((l) => ({ rawValue: l.text, boundingBox: new DOMRectReadOnly(l.x ?? 0, l.y ?? 0, 0, 0) }));
+      },
+    };
+  }
+  const Detector = (globalThis as unknown as { TextDetector?: new () => TextDetectorLike }).TextDetector;
+  try {
+    return Detector ? new Detector() : null;
+  } catch {
+    return null;
+  }
+}
+
 // The live camera has a reader of its own, set up once for code characters only.
 // (Three readers side by side made a phone take 3 to 13 seconds per frame.)
 let live: Promise<OcrWorker> | null = null;
@@ -170,6 +199,7 @@ export default function Scanner() {
   // What the camera last read and what that found, shown small under the picture:
   // a screenshot then tells where scanning gets stuck on a phone.
   const [debug, setDebug] = useState("");
+  const [reader, setReader] = useState("");
   const [lastCode, setLastCode] = useState("");
   const paused = useRef(false);
   const closedAt = useRef(0);
@@ -296,19 +326,35 @@ export default function Scanner() {
     // Answers per code read, so the same code isn't asked again.
     const answers = new Map<string, { res: Response | null; data: ScanAnswer | null }>();
     (async () => {
-      const worker = await liveWorker().catch(() => null);
+      let phone = phoneReader();
+      let worker = phone ? null : await liveWorker().catch(() => null);
+      setReader(phone ? "telefoon" : "browser");
       let frame = 0;
-      while (active && worker) {
+      while (active && (phone || worker)) {
         await new Promise((r) => setTimeout(r, 15));
         const v = video.current;
         if (!active || !v?.videoWidth || paused.current) continue;
         let lines: string[];
         const started = performance.now();
         try {
-          // Each frame cleaned up the next way (see CLEANUPS).
-          const how = CLEANUPS[frame++ % CLEANUPS.length];
-          lines = [(await worker.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()];
+          if (phone) {
+            // Lines of text found, top to bottom, left to right.
+            const found = await phone.detect(grabGuide(v, zoomRef.current));
+            found.sort((a, b) => a.boundingBox.y - b.boundingBox.y || a.boundingBox.x - b.boundingBox.x);
+            lines = [found.map((t) => t.rawValue).join(" ").toUpperCase().replace(/\s+/g, " ").trim()];
+          } else {
+            // Each frame cleaned up the next way (see CLEANUPS).
+            const how = CLEANUPS[frame++ % CLEANUPS.length];
+            lines = [(await worker!.recognize(cleanUp(grabGuide(v, zoomRef.current), how))).data.text.replace(/\s+/g, " ").trim()];
+          }
         } catch (e) {
+          if (phone) {
+            // The phone's reader doesn't work here after all: use the other one.
+            phone = null;
+            setReader("browser");
+            worker = await liveWorker().catch(() => null);
+            continue;
+          }
           setDebug(`leesfout: ${e instanceof Error ? e.message : String(e)}`.slice(0, 80));
           continue; // one failed frame must not stop the scanning
         }
@@ -461,7 +507,7 @@ export default function Scanner() {
                   ? `✓ ${found} gevonden · leg de volgende kaart neer`
                   : "Zoeken naar de code onderaan de kaart…"}
               {cameraInfo && <small>{cameraInfo}</small>}
-              {debug && <small>{debug}</small>}
+              {debug && <small>{reader && `lezer: ${reader} · `}{debug}</small>}
             </span>
             {popup && (() => {
               const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
