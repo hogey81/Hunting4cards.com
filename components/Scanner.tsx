@@ -61,8 +61,23 @@ function ocrWorker() {
 // Android with "Experimental Web Platform features" on in chrome://flags). Much
 // faster and better than the reader below; null where it isn't there or fails.
 type DetectedText = { rawValue: string; boundingBox: DOMRectReadOnly };
+type AppCardReader = { read(options: { image: string }): Promise<{ text: string; lines: { text: string; x?: number; y?: number }[] }> };
 type TextDetectorLike = { detect(source: CanvasImageSource): Promise<DetectedText[]> };
 function phoneReader(): TextDetectorLike | null {
+  // In our Android app: its CardReader plugin (mobile/android, ML Kit on the phone).
+  const app = (globalThis as unknown as {
+    Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { CardReader?: AppCardReader } };
+  }).Capacitor;
+  const cardReader = app?.isNativePlatform?.() ? app.Plugins?.CardReader : undefined;
+  if (cardReader) {
+    return {
+      async detect(source) {
+        const canvas = source as HTMLCanvasElement;
+        const { lines } = await cardReader.read({ image: canvas.toDataURL("image/jpeg", 0.9) });
+        return lines.map((l) => ({ rawValue: l.text, boundingBox: new DOMRectReadOnly(l.x ?? 0, l.y ?? 0, 0, 0) }));
+      },
+    };
+  }
   const Detector = (globalThis as unknown as { TextDetector?: new () => TextDetectorLike }).TextDetector;
   try {
     return Detector ? new Detector() : null;
