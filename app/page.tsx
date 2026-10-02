@@ -25,8 +25,8 @@ export default function GamesPage() {
     {
       key: "yugioh",
       name: "Yu-Gi-Oh!",
-      sub: "Binnenkort",
-      href: null,
+      sub: "Kaarten en sets",
+      href: "/yugioh",
       color: "#5B21B6",
       image: "/games/yugioh.svg",
     },

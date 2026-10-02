@@ -22,6 +22,8 @@ export function setIdFromCardId(cardId: string) {
 
 // Takes a card reference ("me05-048" or "ja:M4-001"). Japanese cards print their set id.
 export function cardCode(ref: string, localId?: string) {
+  // Yu-Gi-Oh! prints carry their code: "ygo:LOB-EN001~UR" -> "LOB-EN001".
+  if (ref.startsWith("ygo:")) return ref.slice(4).split("~")[0];
   const { region, id } = parseRef(ref);
   const setId = setIdFromCardId(id);
   const number = localId ?? id.slice(setId.length + 1);
