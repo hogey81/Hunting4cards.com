@@ -1,7 +1,4 @@
 import Link from "next/link";
-import { lorcanaImage, pokemonImage, yugiohImage } from "@/lib/game-images";
-
-export const revalidate = 86400;
 
 type Game = { key: string; name: string; sub: string; href: string | null; color: string; image: string | null; icon: React.ReactNode };
 
@@ -26,15 +23,15 @@ const hexagon = (
   </>
 );
 
-// The game picker: one tile per game. Pokémon opens the app as it is; the
+// The game picker: one tile per game, each with its picture in public/games/
+// (an icon until a game has one). Pokémon opens the app as it is; the
 // others are coming.
-export default async function GamesPage() {
-  const [pokemon, yugioh, lorcana] = await Promise.all([pokemonImage(), yugiohImage(), lorcanaImage()]);
+export default function GamesPage() {
   const games: Game[] = [
-    { key: "pokemon", name: "Pokémon", sub: "Kaarten en sets", href: "/", color: "#1D4ED8", image: pokemon, icon: bolt },
-    { key: "yugioh", name: "Yu-Gi-Oh!", sub: "Binnenkort", href: null, color: "#5B21B6", image: yugioh, icon: pyramid },
+    { key: "pokemon", name: "Pokémon", sub: "Kaarten en sets", href: "/", color: "#1D4ED8", image: "/games/pokemon.webp", icon: bolt },
+    { key: "yugioh", name: "Yu-Gi-Oh!", sub: "Binnenkort", href: null, color: "#5B21B6", image: null, icon: pyramid },
     { key: "wk2026", name: "WK 2026", sub: "Panini-stickers · binnenkort", href: null, color: "#15803D", image: null, icon: ball },
-    { key: "lorcana", name: "Lorcana", sub: "Binnenkort", href: null, color: "#0E7490", image: lorcana, icon: hexagon },
+    { key: "lorcana", name: "Lorcana", sub: "Binnenkort", href: null, color: "#0E7490", image: null, icon: hexagon },
   ];
 
   return (
