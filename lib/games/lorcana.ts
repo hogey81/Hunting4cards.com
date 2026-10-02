@@ -1,6 +1,8 @@
 // Disney Lorcana from Lorcast (https://lorcast.com/docs/api). Lorcast only has
-// TCGplayer prices in dollars, so Lorcana cards don't count towards the collection
-// value in euro; the card page shows the dollar price.
+// TCGplayer prices in dollars, so the euro price comes from Cardmarket's daily
+// files (game 19), matched on the name: "Elsa - Spirit of Winter". The dollar
+// price shows when Cardmarket has none.
+import { cachedSetPrices, cardmarketPrices, cardmarketSearchUrl } from "./cardmarket";
 import { noPrice, type GameSet, type GameTile, type Provider } from "./types";
 
 const BASE = "https://api.lorcast.com/v0";
@@ -82,6 +84,7 @@ export const lorcana: Provider = {
     if (at < 0) return null;
     const c = list[at];
     const stats = [c.cost != null ? `Kosten ${c.cost}` : null, c.strength != null ? `Kracht ${c.strength}` : null, c.willpower != null ? `Wilskracht ${c.willpower}` : null, c.lore != null ? `Lore ${c.lore}` : null];
+    const cm = (await cachedSetPrices(`lor:${found.set.code}`, () => cardmarketPrices(19, (name) => name, list.map(fullName))))[at] ?? null;
     const price = usd(c.prices?.usd);
     const foil = usd(c.prices?.usd_foil);
     return {
@@ -94,11 +97,13 @@ export const lorcana: Provider = {
         rarity: rarity(c),
         facts: [(c.type ?? []).join(" "), c.ink, ...stats].filter((f): f is string => !!f),
         text: c.text ?? null,
-        normal: noPrice,
-        foil: noPrice,
-        otherPrice: price || foil ? { label: "Prijs (TCGplayer, in dollars)", value: [price, foil && `foil ${foil}`].filter(Boolean).join(" · ") } : null,
-        priceNote: "Voor Lorcana is geen Cardmarket-prijs beschikbaar; dit is de Amerikaanse TCGplayer-prijs via Lorcast. Hij telt niet mee in je collectiewaarde.",
-        cardmarketUrl: `https://www.cardmarket.com/en/Lorcana/Products/Search?searchString=${encodeURIComponent(c.name)}`,
+        normal: cm?.normal ?? noPrice,
+        foil: cm?.foil ?? noPrice,
+        otherPrice: !cm?.normal.trend && (price || foil) ? { label: "Prijs (TCGplayer, in dollars)", value: [price, foil && `foil ${foil}`].filter(Boolean).join(" · ") } : null,
+        priceNote: cm
+          ? "Cardmarket-prijs uit de dagelijkse prijslijst, gekoppeld op de naam. Bij Enchanted- en promoversies kan de koppeling soms naast zitten."
+          : "Geen Cardmarket-prijs gevonden; dit is de Amerikaanse TCGplayer-prijs via Lorcast. Hij telt niet mee in je collectiewaarde.",
+        cardmarketUrl: cardmarketSearchUrl("Lorcana", fullName(c)),
         others: [],
       },
     };

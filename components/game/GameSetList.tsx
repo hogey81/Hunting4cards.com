@@ -4,11 +4,11 @@ import SetProgress from "@/components/SetProgress";
 import { gameSetHref, gameSetPrefix, type GamePrefix } from "@/lib/games/refs";
 import type { GameSet } from "@/lib/games/types";
 
-// A game's sets grouped by release year, newest first.
+// A game's sets grouped by release year (or the group the game gives them), newest first.
 export default function GameSetList({ prefix, sets }: { prefix: GamePrefix; sets: GameSet[] }) {
   const years = new Map<string, GameSet[]>();
   for (const s of sets) {
-    const year = s.date?.slice(0, 4) ?? "Zonder datum";
+    const year = s.group ?? s.date?.slice(0, 4) ?? "Zonder datum";
     years.set(year, [...(years.get(year) ?? []), s]);
   }
   return (

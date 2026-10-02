@@ -11,6 +11,8 @@ export type GameSet = {
   total: number;
   date: string | null;
   image: string | null;
+  // Heading in the set list instead of the release year ("Starter decks").
+  group?: string;
 };
 
 // A card as it shows in a grid.
