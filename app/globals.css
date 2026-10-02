@@ -397,3 +397,11 @@ a.chip { display: inline-flex; align-items: center; }
 .card-text { white-space: pre-line; }
 /* Scryfall's Magic set symbols are black; make them white on the navy rows. */
 img[src*="svgs.scryfall.io"] { filter: invert(1); }
+
+/* Account deletion and the privacy statement */
+.btn-danger { color: var(--down) !important; border-color: var(--down) !important; }
+.small-print { font-size: 13px; margin-top: 18px; text-align: center; }
+.legal { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
+.legal h2 { font-family: var(--display); font-size: 18px; margin: 10px 0 0; }
+.legal p, .legal li { line-height: 1.5; margin: 0; }
+.legal ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
