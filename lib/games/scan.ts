@@ -34,11 +34,15 @@ const BY_GAME: Record<string, (p: Provider, text: string) => Promise<Found | nul
     for (const m of text.matchAll(/\b([A-Z0-9]{2,5})-(EN|DE|FR|IT|SP|PT|E|G|F|I|S|P)?([0-9OQDILSB]{3})\b/g)) {
       const [, set, lang, num] = m;
       const number = digits(num);
-      // The app keeps the English codes; the language is a choice of its own.
-      const wanted = new Set([`${set}-EN${number}`, `${set}-${number}`, `${set}-E${number}`]);
       const found = await p.getSet(set).catch(() => null);
-      const tiles = (found?.cards ?? []).filter((t) => wanted.has(t.code));
-      if (tiles.length) return { tiles, read: `${set}-${lang ?? ""}${number}`, language: YGO_LANGS[lang ?? "EN"] };
+      // The app keeps the English codes, the language is a choice of its own. Old
+      // sets also have codes without a language ("LOB-001"), and European ones with
+      // a different numbering ("SDY-E006" is another card than SDY-EN006).
+      const tries = [`${set}-EN${number}`, `${set}-${lang ?? ""}${number}`, `${set}-${number}`];
+      for (const code of tries) {
+        const tiles = (found?.cards ?? []).filter((t) => t.code === code);
+        if (tiles.length) return { tiles, read: `${set}-${lang ?? ""}${number}`, language: YGO_LANGS[lang ?? "EN"] };
+      }
     }
     return null;
   },
@@ -47,8 +51,10 @@ const BY_GAME: Record<string, (p: Provider, text: string) => Promise<Found | nul
       const prefix = m[1] === "P" ? "P" : m[1].slice(0, -2) + digits(m[1].slice(-2));
       const code = `${prefix}-${digits(m[2])}`;
       const tiles = (await p.search(code).catch(() => [])).filter((t) => t.code === code);
-      // The normal print first; parallels and reprints as the other choices.
-      tiles.sort((a, b) => Number(a.ref.includes("_p")) - Number(b.ref.includes("_p")));
+      // The normal print in its own set first ("OP01-120" in OP-01); parallels and reprints as the other choices.
+      const home = `op:${code.replace(/^([A-Z]+)(\d+)-.*/, "$1-$2")}/${code}`;
+      const rank = (t: GameTile) => (t.ref === home ? 0 : t.ref.endsWith(`/${code}`) ? 1 : 2);
+      tiles.sort((a, b) => rank(a) - rank(b));
       if (tiles.length) return { tiles, read: code };
     }
     return null;
@@ -79,9 +85,12 @@ const BY_GAME: Record<string, (p: Provider, text: string) => Promise<Found | nul
   },
   async swu(p, text) {
     const sets = new Set((await p.getSets().catch(() => [])).map((s) => s.code));
-    for (const m of text.matchAll(/\b([A-Z0-9]{3,6})\b[^\n\d]{0,6}(\d{1,3})\b|\b(\d{1,3})\s*\/\s*\d{2,3}[^\n\d]{0,6}\b([A-Z0-9]{3,6})\b/g)) {
-      const set = m[1] ?? m[4];
-      const num = m[2] ?? m[3];
+    // "SOR • 051" or "051/252 • SOR".
+    const pairs = [
+      ...[...text.matchAll(/\b([A-Z][A-Z0-9]{2,5})\b[^\n\dA-Z]{0,6}(\d{1,3})\b/g)].map((m) => [m[1], m[2]]),
+      ...[...text.matchAll(/\b(\d{1,3})\s*\/\s*\d{2,3}[^\n\dA-Z]{0,6}([A-Z][A-Z0-9]{2,5})\b/g)].map((m) => [m[2], m[1]]),
+    ];
+    for (const [set, num] of pairs) {
       if (!sets.has(set)) continue;
       const tile = (await card(p, `swu:${set}/${num.padStart(3, "0")}`)) ?? (await card(p, `swu:${set}/${Number(num)}`));
       if (tile) return { tiles: [tile], read: `${set} ${num}` };
@@ -109,17 +118,22 @@ async function byName(p: Provider, text: string): Promise<Found | null> {
     .split("\n")
     .map((l) => l.replace(/[^\p{L}\p{N}'’,.\- ]/gu, " ").replace(/\s+/g, " ").trim())
     .filter((l) => (l.match(/\p{L}/gu) ?? []).length >= 4);
-  for (const line of lines.slice(0, 3)) {
+  // The first two lines together too: Lorcana prints "Elsa" above "Spirit of Winter".
+  const tries = [lines.slice(0, 2).join(" "), ...lines.slice(0, 3)].filter((l, i, all) => l && all.indexOf(l) === i);
+  for (const line of tries) {
     const found = await p.search(line).catch(() => [] as GameTile[]);
     // A name like "Elsa - Spirit of Winter" is read as its parts.
-    const tiles = found.filter((t) => plain(t.name).split(" ").filter((w) => w.length > 1).every((w) => read.includes(w)));
+    // Without what the app adds in brackets, like FaB's "(Red)".
+    const words = (t: GameTile) => plain(t.name.replace(/\([^)]*\)/g, "")).split(" ").filter((w) => w.length > 1);
+    const tiles = found.filter((t) => words(t).every((w) => read.includes(w)));
     if (tiles.length) return { tiles, read: line };
   }
   return null;
 }
 
 export async function scanGame(provider: Provider, raw: string): Promise<GameScanAnswer> {
-  const text = raw.toUpperCase().slice(0, 8000);
+  // A zero read for the letter O in "OP01-001".
+  const text = raw.toUpperCase().slice(0, 8000).replace(/\b0P(?=\d)/g, "OP");
   const language = provider.languages[0];
   const byCode = await BY_GAME[provider.prefix]?.(provider, text).catch(() => null);
   if (byCode?.tiles.length) {
