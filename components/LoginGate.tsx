@@ -1,15 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount } from "@/lib/account";
 import LoginForm from "@/components/LoginForm";
 
-// With accounts switched on, the app opens on this login screen until you're logged in.
-// /account stays reachable, because the button in the login mail finishes the login there.
+// With accounts switched on, the game picker ("/") is open to everyone; picking a game
+// shows this login screen until you're logged in. /account stays reachable, because the
+// button in the login mail finishes the login there.
 export default function LoginGate() {
   const { enabled, user, ready } = useAccount();
   const path = usePathname();
-  if (!enabled || user || path === "/account") return null;
+  if (!enabled || user || path === "/" || path === "/account") return null;
   return (
     <div className="games login-gate">
       {ready && (
@@ -20,6 +22,7 @@ export default function LoginGate() {
           <section className="login-card">
             <LoginForm />
           </section>
+          <Link className="login-back" href="/">‹ Terug naar de spellen</Link>
         </div>
       )}
     </div>
