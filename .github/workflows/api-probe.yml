@@ -6,26 +6,17 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-search-name-set
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+      - name: Test
         run: |
-          cat > p.py <<'PY'
-          import json, urllib.request, collections
-          def get(u):
-              return json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent":"Hunting4Cards/1.0"}), timeout=120).read())
-          prods = get("https://downloads.s3.cardmarket.com/productCatalog/productList/products_singles_6.json")["products"]
-          guide = {r["idProduct"]: r for r in get("https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_6.json")["priceGuides"]}
-          for e in range(6598, 6608):
-              ps = sorted([p for p in prods if p["idExpansion"] == e], key=lambda p: p["idProduct"])
-              if ps: print(e, len(ps), [p["name"].split(" [")[0] for p in ps[:8]], ps[0]["dateAdded"])
-          for sid in ["30th", "30th-c"]:
-              s = get(f"https://api.tcgdex.net/v2/en/sets/{sid}")
-              print(sid, s["name"], s["cardCount"], [(c["localId"], c["name"]) for c in s["cards"]][:10], [(c["localId"], c["name"]) for c in s["cards"]][-8:])
-              names = [c["name"] for c in s["cards"]]
-              votes = collections.Counter()
-              for n in set(names):
-                  for e in {p["idExpansion"] for p in prods if p["name"].split(" [")[0] == n}: votes[e] += 1
-              print(" votes", votes.most_common(6))
-          g = sorted([p for p in prods if p["name"].startswith("Gengar ex [") and p["idExpansion"] in range(6598,6608)], key=lambda p: p["idProduct"])
-          for p in g: print(p["idProduct"], p["idExpansion"], guide.get(p["idProduct"], {}).get("trend"))
-          PY
-          python3 p.py
+          (npm start -- -p 3000 > server.log 2>&1 &)
+          sleep 8
+          curl -sS -m 180 "http://localhost:3000/api/prices?ids=30th-154,30th-090,30th-001,30th-c-001,me05-048,sv08-057" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(c['id'], c['name'], c['normal']['trend'], c['reverse']['trend']) for c in d['cards']]; print(d['failed'])"
+          curl -sS "http://localhost:3000/kaart/30th-154" | grep -o "€[^<]*" | head -5
+          tail -5 server.log
