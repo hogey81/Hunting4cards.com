@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Variant } from "./prices";
 
-// For now the collection lives on the device. Accounts and sync can come later.
+// The collection lives on the device. With an account it is also kept online
+// (see lib/account.ts), which copies it back and forth.
 
 // Languages you can pick for an international card. Japanese cards are separate
 // cards (their own sets and numbers) and are always stored as "JP".
@@ -40,7 +41,9 @@ export function entryKey(cardId: string, variant: Variant, language: Language, c
   return `${cardId}|${variant}|${language}|${condition}`;
 }
 
-function read(): CollectionEntry[] {
+export const CHANGED_KEY = "h4c.collection.changedAt";
+
+export function read(): CollectionEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
@@ -70,14 +73,18 @@ export function rememberCondition(c: Condition) {
   } catch {}
 }
 
-function write(entries: CollectionEntry[]) {
+// `fromSync` marks a copy coming from the account, which isn't a change of its own.
+export function write(entries: CollectionEntry[], fromSync = false) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    if (!fromSync) localStorage.setItem(CHANGED_KEY, new Date().toISOString());
   } catch {
     // Storage full or blocked: keep working in memory.
   }
-  window.dispatchEvent(new Event(EVENT));
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { fromSync } }));
 }
+
+export const COLLECTION_EVENT = EVENT;
 
 export function useCollection() {
   const [entries, setEntries] = useState<CollectionEntry[]>([]);

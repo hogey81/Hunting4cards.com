@@ -3,7 +3,7 @@
   "appName": "Hunting4Cards",
   "webDir": "www",
   "server": {
-    "url": "https://hunting4cards-com.vercel.app",
+    "url": "https://www.hunting4cards.com",
     "cleartext": false
   },
   "android": {

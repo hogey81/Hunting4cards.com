@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hunting4cards.app",
+      "sha256_cert_fingerprints": [
+        "CC:2A:5E:BD:61:96:10:E2:1C:07:37:4F:43:1B:AF:15:F8:16:85:25:53:07:37:82:92:9E:D3:40:14:B9:40:C9"
+      ]
+    }
+  }
+]

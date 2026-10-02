@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import TabBar from "@/components/TabBar";
+import { AccountSync } from "@/lib/account";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <main className="page">{children}</main>
+        <AccountSync />
         <Suspense fallback={null}>
           <TabBar />
         </Suspense>

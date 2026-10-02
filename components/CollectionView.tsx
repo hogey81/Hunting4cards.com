@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useAccount } from "@/lib/account";
 import { useCollectionPrices } from "@/lib/use-collection-prices";
 import { cardCode } from "@/lib/set-code";
 import { cardHref } from "@/lib/card-ref";
@@ -13,6 +14,7 @@ export type Filter = "Alles" | "Stijgers" | "Dalers";
 export default function CollectionView({ initialFilter }: { initialFilter: Filter }) {
   const { entries, loaded, rows, error, loading, total, count, setCount, latest } = useCollectionPrices();
   const [filter, setFilter] = useState<Filter>(initialFilter);
+  const account = useAccount();
 
   const visible = rows
     .filter((r) => (filter === "Stijgers" ? (r.change ?? 0) > 0 : filter === "Dalers" ? (r.change ?? 0) < 0 : true))
@@ -22,13 +24,29 @@ export default function CollectionView({ initialFilter }: { initialFilter: Filte
     <>
       <header className="head">
         <h1>Mijn collectie</h1>
-        <Link href="/zoeken" className="round-btn" aria-label="Kaart zoeken">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-4-4" />
-          </svg>
-        </Link>
+        <div className="head-actions">
+          {account.enabled && (
+            <Link href="/account" className="round-btn" aria-label="Account">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+              </svg>
+            </Link>
+          )}
+          <Link href="/zoeken" className="round-btn" aria-label="Kaart zoeken">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-4-4" />
+            </svg>
+          </Link>
+        </div>
       </header>
+
+      {account.enabled && account.ready && !account.user && (
+        <Link href="/account" className="save-banner">
+          Bewaar je collectie online, zodat je hem nooit kwijtraakt <span>Inloggen ›</span>
+        </Link>
+      )}
 
       <section className="value-card">
         <div className="value-ring" aria-hidden="true" />

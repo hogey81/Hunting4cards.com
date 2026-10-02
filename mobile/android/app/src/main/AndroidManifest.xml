@@ -22,6 +22,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Login links from the email open the app instead of the browser
+                 (verified through /.well-known/assetlinks.json on the site). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="www.hunting4cards.com" />
+                <data android:host="hunting4cards.com" />
+                <data android:pathPrefix="/account" />
+            </intent-filter>
+
         </activity>
 
         <provider
