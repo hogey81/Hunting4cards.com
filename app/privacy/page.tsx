@@ -34,15 +34,9 @@ export default function PrivacyPage() {
       <h2>Hoe lang we gegevens bewaren</h2>
       <p>Je account en online collectie bewaren we tot je ze verwijdert. Daarna zijn ze direct weg. Serverlogboeken worden na korte tijd automatisch gewist door onze hostingpartij.</p>
 
-      <h2>Wie de gegevens verwerkt</h2>
-      <ul>
-        <li>Supabase bewaart je account en collectie, op servers in Ierland.</li>
-        <li>Resend verstuurt de inlogmail.</li>
-        <li>Vercel host de website en app.</li>
-        <li>ImprovMX stuurt mail aan {CONTACT} naar ons door.</li>
-        <li>Google Fonts levert de lettertypes. Kaartafbeeldingen komen van de kaartdatabases van de spellen (zoals TCGdex, Scryfall en YGOPRODeck). Bij het laden zien zij je IP-adres.</li>
-      </ul>
-      <p>Sommige van deze partijen zijn Amerikaanse bedrijven. Gegevens kunnen daardoor buiten de EU terechtkomen. Dat gebeurt alleen met de waarborgen die de AVG voorschrijft, zoals het EU-VS Data Privacy Framework of de standaardcontractbepalingen van de Europese Commissie.</p>
+      <h2>Met wie we samenwerken</h2>
+      <p>Voor hosting, opslag en het versturen van e-mail werken we met zorgvuldig gekozen dienstverleners. Zij verwerken je gegevens alleen in onze opdracht en mogen ze nergens anders voor gebruiken. Je account en collectie staan op servers in de Europese Unie. Waar een dienstverlener buiten de EU gevestigd is, gelden de waarborgen die de AVG voorschrijft, zoals de standaardcontractbepalingen van de Europese Commissie.</p>
+      <p>Kaartafbeeldingen en lettertypes worden rechtstreeks geladen van de openbare kaartdatabases van de spellen en van Google Fonts, zoals bij elke website die afbeeldingen van elders toont.</p>
 
       <h2>Je rechten</h2>
       <p>Je kunt je account en je online collectie op elk moment zelf verwijderen via <Link href="/account">Account</Link> → Account verwijderen. Je hebt ook recht op inzage, correctie, overdracht en bezwaar. Mail daarvoor naar <a href={`mailto:${CONTACT}`}>{CONTACT}</a>; we reageren binnen een maand.</p>
