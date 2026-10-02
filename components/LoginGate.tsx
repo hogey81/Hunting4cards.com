@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAccount } from "@/lib/account";
 import LoginForm from "@/components/LoginForm";
 
@@ -11,7 +12,11 @@ import LoginForm from "@/components/LoginForm";
 export default function LoginGate() {
   const { enabled, user, ready } = useAccount();
   const path = usePathname();
-  if (!enabled || user || path === "/" || path === "/account") return null;
+  // Every Vercel test link is its own website with its own login, so the screen
+  // only shows on the real site; test links work without logging in.
+  const [testLink, setTestLink] = useState(false);
+  useEffect(() => setTestLink(window.location.hostname.endsWith(".vercel.app")), []);
+  if (!enabled || user || testLink || path === "/" || path === "/account") return null;
   return (
     <div className="games login-gate">
       {ready && (
