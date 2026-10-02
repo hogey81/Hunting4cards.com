@@ -1,21 +1,22 @@
 :root {
-  /* Navy with gold, like the game picker. */
-  --bg: #0B1630;
+  /* Light page with navy tiles and gold accents, like the game picker. */
+  --bg: #EEF2F8;
   --surface: #13244D;
   --deep: #070E19;
-  --ink: #F1F4FF;
-  --muted: #A9B6D6;
-  --line: #22397A;
-  --soft: #1A2F5E;
+  --ink: #0B1630;
+  --muted: #4A5878;
+  --line: #CBD5E6;
+  --soft: #DDE4F0;
+  --link: #1D4ED8;
   --accent: #FFC928;
   --on-accent: #0B1630;
   --blue: #1D4ED8;
   --yellow: #FFC928;
-  --up: #4ADE80;
-  --down: #F59E7A;
+  --up: #15803D;
+  --down: #C2410C;
   --display: "Bricolage Grotesque", system-ui, sans-serif;
   --body: "DM Sans", system-ui, sans-serif;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -28,8 +29,14 @@ body {
 }
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
+/* Dark navy tiles on the light page: light text inside them. */
+.round-btn, .btn:not(.btn-primary), .stat, .chip:not(.on), .empty, .set-row, .price-card, .stepper, .search input,
+.home-search, .tile-card, .scan-match, .scan-popup, .tabbar, .card-hero .card-missing {
+  --ink: #F1F4FF; --muted: #A9B6D6; --line: #22397A; --soft: #1A2F5E; --link: #FFC928; --up: #4ADE80; --down: #F59E7A;
+  color: var(--ink);
+}
 h1, h2 { margin: 0; }
-h1 { color: var(--accent); font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -0.5px; }
+h1 { color: var(--ink); font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -0.5px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -82,7 +89,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stat { background: var(--surface); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; }
 .stat strong { font-family: var(--display); font-size: 20px; font-weight: 800; }
 .stat span { font-size: 12px; color: var(--muted); }
-.stat-link { color: inherit; text-decoration: none; }
+.stat-link { color: var(--ink); text-decoration: none; }
 .stat-link:active { opacity: .7; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -239,7 +246,7 @@ a.chip { display: inline-flex; align-items: center; }
 .recent { display: flex; flex-direction: column; gap: 10px; }
 .section-head { display: flex; justify-content: space-between; align-items: baseline; }
 .section-head h2 { font-family: var(--display); font-size: 18px; font-weight: 800; }
-.section-head a { font-size: 13px; font-weight: 700; color: var(--accent); padding: 8px 0; }
+.section-head a { font-size: 13px; font-weight: 700; color: var(--link); padding: 8px 0; }
 .strip { display: flex; gap: 10px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; scroll-snap-type: x mandatory; }
 .strip-card { flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px; scroll-snap-align: start; min-width: 0; }
 
@@ -269,7 +276,7 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .scan-info strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scan-added { font-size: 12px; color: var(--up); font-weight: 700; }
-.scan-added a { color: var(--accent); }
+.scan-added a { color: var(--link); }
 .scan-add { flex-shrink: 0; min-height: 44px; padding: 0 14px; }
 /* Live: keep the 3:4 frame so the card outline always fits. */
 .scan-frame.live { max-height: none; }
@@ -321,7 +328,7 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-search { width: 100%; margin-bottom: 10px; }
 .scan-notice { margin: -4px 0 10px; text-align: center; font-size: 14px; color: var(--muted); }
 .scan-popup-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.scan-popup-choices .chip { font: inherit; font-weight: 700; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
+.scan-popup-choices .chip { font: inherit; font-weight: 700; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
 .seg-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* Big buttons: picked with a thumb, often while holding a card. */
 .scan-popup-pick { display: grid; gap: 8px; }
@@ -329,7 +336,7 @@ a.chip { display: inline-flex; align-items: center; }
 .scan-popup-pick.seg-ver { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .scan-popup-pick .chip { min-height: 56px; padding: 0 6px; border-radius: 14px; font-size: 20px; font-weight: 800; }
 .scan-popup-pick.seg-ver .chip { font-size: 16px; }
-.owned-veil { position: absolute; inset: 0; background: rgba(11, 22, 48, 0.6); pointer-events: none; }
+.owned-veil { position: absolute; inset: 0; background: rgba(238, 242, 248, 0.62); pointer-events: none; }
 .owned-check {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; border-radius: 28px;
   background: #16A34A; color: #fff; display: flex; align-items: center; justify-content: center;
