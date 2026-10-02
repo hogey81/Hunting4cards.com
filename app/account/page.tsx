@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { sendCode, signOut, useAccount, verifyCode, verifyLink } from "@/lib/account";
 import { useCollection } from "@/lib/collection";
@@ -9,6 +10,7 @@ import { LOGIN_WITH_CODE } from "@/lib/account-config";
 export default function AccountPage() {
   const { enabled, user, ready } = useAccount();
   const { entries } = useCollection();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -21,7 +23,8 @@ export default function AccountPage() {
     const tokenHash = params.get("token_hash");
     if (!tokenHash) return;
     window.history.replaceState(null, "", "/account");
-    run(() => verifyLink(tokenHash));
+    // Logged in from the email: go to the start screen with the game tiles.
+    run(() => verifyLink(tokenHash), () => router.replace("/"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
