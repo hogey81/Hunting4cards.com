@@ -2,6 +2,7 @@
 // this file so the source can be swapped later (e.g. the Cardmarket price guide).
 
 import { priceGuide } from "./cardmarket";
+import { cachedSetPrices, cardmarketPrices } from "./games/cardmarket";
 
 const BASE = "https://api.tcgdex.net/v2";
 
@@ -88,11 +89,32 @@ async function get<T>(region: Region, path: string): Promise<T | null> {
 export async function getCard(id: string, region: Region = "en") {
   const card = await get<Card>(region, `/cards/${encodeURIComponent(id)}`);
   const productIds = (card?.variants_detailed ?? []).map((v) => v.thirdParty?.cardmarket).filter((n): n is number => !!n);
-  if (!card || !productIds.length) return card;
+  if (!card) return card;
+  if (!productIds.length && region === "en" && !card.pricing?.cardmarket?.trend) {
+    // Not linked to Cardmarket yet (new sets, e.g. 30th Celebration): matched by name instead.
+    const found = await productByName(card).catch(() => null);
+    if (found) productIds.push(found);
+  }
+  if (!productIds.length) return card;
   const guide = await priceGuide();
   const fromGuide = productIds.map((pid) => guide?.get(pid)).find(Boolean);
   if (fromGuide) card.pricing = { ...card.pricing, cardmarket: fromGuide };
   return card;
+}
+
+// Cardmarket's product for a card TCGdex hasn't linked: the same name in the
+// Cardmarket expansion that holds most of the set's cards, and among cards with the
+// same name (e.g. a normal and a special illustration Gengar ex) the one in the same
+// place by card number. Product names carry the attacks: "Gengar ex [Fainting Spell | Chaotic Pain]".
+async function productByName(card: Card): Promise<number | null> {
+  const set = await getSet(card.set.id);
+  if (!set?.cards.length) return null;
+  const at = set.cards.findIndex((c) => c.id === card.id);
+  if (at < 0) return null;
+  const matches = await cachedSetPrices(`pkm:${set.id}`, () =>
+    cardmarketPrices(6, (name) => name.replace(/\s*\[.*$/, ""), set.cards.map((c) => c.name)),
+  );
+  return matches[at]?.idProduct ?? null;
 }
 
 export function getSet(id: string, region: Region = "en") {

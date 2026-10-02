@@ -82,7 +82,8 @@ export async function cardmarketPrices(
     if (!k) continue;
     for (const exp of new Set(cat.byKey.get(k)!.map((p) => p.idExpansion))) votes.set(exp, (votes.get(exp) ?? 0) + 1);
   }
-  const expansion = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0];
+  // On a tie the oldest expansion. Cardmarket split 30th Celebration into four; we take the first one added.
+  const expansion = [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0];
 
   const seen = new Map<string, number>();
   return chosen.map((k) => {
