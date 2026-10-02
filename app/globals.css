@@ -389,3 +389,8 @@ a.chip { display: inline-flex; align-items: center; }
   .games-wide { max-width: 1180px; }
   .games-wide .games-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
 }
+/* Yu-Gi-Oh! (app/yugioh) */
+.link { color: var(--link); font-weight: 700; font-size: 14px; }
+.ygo-prints { display: flex; flex-direction: column; gap: 10px; }
+.ygo-print { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: #F1F4FF; }
+.ygo-print .muted { color: #A9B6D6; }

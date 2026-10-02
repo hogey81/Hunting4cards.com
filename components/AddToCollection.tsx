@@ -9,11 +9,14 @@ export default function AddToCollection({
   japanese,
   hasReverse,
   hasHolo = false,
+  languages = LANGUAGES,
 }: {
   cardRef: string;
   japanese: boolean;
   hasReverse: boolean;
   hasHolo?: boolean;
+  // The languages the card was printed in (Yu-Gi-Oh! has no Dutch edition).
+  languages?: readonly Language[];
 }) {
   const { entries, add, setQuantity } = useCollection();
   const [picked, setPicked] = useState<Language>("EN");
@@ -31,7 +34,7 @@ export default function AddToCollection({
         <fieldset>
           <legend>Taal van jouw kaart</legend>
           <div className="seg seg-4">
-            {LANGUAGES.map((l) => (
+            {languages.map((l) => (
               <button key={l} type="button" className={l === picked ? "chip on" : "chip"} aria-pressed={l === picked} onClick={() => setPicked(l)}>
                 {l}
               </button>

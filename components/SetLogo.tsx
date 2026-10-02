@@ -8,5 +8,5 @@ export default function SetLogo({ sources, code, className }: { sources: (string
   const urls = sources.filter((s): s is string => !!s);
   const [index, setIndex] = useState(0);
   if (index >= urls.length) return code ? <span className="set-logo-code">{code}</span> : null;
-  return <img src={urls[index]} alt="" className={className} onError={() => setIndex((i) => i + 1)} />;
+  return <img src={urls[index]} alt="" loading="lazy" className={className} onError={() => setIndex((i) => i + 1)} />;
 }

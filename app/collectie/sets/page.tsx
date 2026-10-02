@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import SetLogo from "@/components/SetLogo";
 import SetProgress from "@/components/SetProgress";
 import { useCollection } from "@/lib/collection";
-import { mySetRefs, parseRef, setHref } from "@/lib/card-ref";
+import { mySetRefs, setRefHref } from "@/lib/card-ref";
 import type { MySet } from "@/app/api/sets/route";
 
 // The sets someone has cards from, newest first, grouped like the sets page.
@@ -49,9 +49,8 @@ export default function MySetsPage() {
           <h2 className="eyebrow">{serie}</h2>
           <div className="list">
             {list.map((set) => {
-              const { region, id } = parseRef(set.ref);
               return (
-                <Link key={set.ref} href={setHref(region, id)} className="set-row">
+                <Link key={set.ref} href={setRefHref(set.ref)} className="set-row">
                   <div className="set-symbol">
                     <SetLogo sources={set.images} code={set.code} />
                   </div>
