@@ -61,7 +61,7 @@ export default function AccountPage() {
             <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => verifyCode(email.trim(), code.trim())); }}>
               <p>We hebben een code gestuurd naar <strong>{email}</strong>. Vul hem hier in.</p>
               <label className="sr-only" htmlFor="code">Code</label>
-              <input id="code" required autoComplete="one-time-code" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+              <input id="code" required autoComplete="one-time-code" inputMode="numeric" placeholder="Code uit de mail" value={code} onChange={(e) => setCode(e.target.value)} />
               <button className="btn btn-primary" disabled={busy}>{busy ? "Controleren…" : "Inloggen"}</button>
               <button type="button" className="btn" onClick={() => { setSent(false); setCode(""); setError(null); }}>Ander e-mailadres</button>
             </form>
