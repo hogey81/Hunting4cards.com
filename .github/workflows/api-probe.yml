@@ -6,17 +6,22 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: fix-search-name-set
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci && npm run build
-      - name: Test
+      - name: Security probe
+        env:
+          SB: https://vtllviqpmebgnkpupcah.supabase.co
+          KEY: sb_publishable_asGMu1qx7ZFotjBK1aBcZw_BYUvrae3
         run: |
-          (npm start -- -p 3000 > server.log 2>&1 &)
-          sleep 8
-          curl -sS -m 180 "http://localhost:3000/api/prices?ids=30th-154,30th-090,30th-001,30th-c-001,me05-048,sv08-057" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(c['id'], c['name'], c['normal']['trend'], c['reverse']['trend']) for c in d['cards']]; print(d['failed'])"
-          curl -sS "http://localhost:3000/kaart/30th-154" | grep -o "€[^<]*" | head -5
-          tail -5 server.log
+          echo "== 1 anon read collections (expect [])"
+          curl -sS "$SB/rest/v1/collections?select=user_id,updated_at&limit=5" -H "apikey: $KEY" -w "  HTTP %{http_code}\n"
+          echo "== 2 anon insert (expect error)"
+          curl -sS -X POST "$SB/rest/v1/collections" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"user_id":"00000000-0000-0000-0000-000000000000","entries":[]}' -w "  HTTP %{http_code}\n"
+          echo "== 3 anon rpc delete_my_account (expect denied)"
+          curl -sS -X POST "$SB/rest/v1/rpc/delete_my_account" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}' -w "  HTTP %{http_code}\n"
+          echo "== 4 anon list tables via openapi"
+          curl -sS "$SB/rest/v1/" -H "apikey: $KEY" -w "\n  HTTP %{http_code}\n" | head -c 600; echo
+          echo "== 5 auth settings"
+          curl -sS "$SB/auth/v1/settings" -H "apikey: $KEY"; echo
+          echo "== 6 site headers"
+          curl -sSI https://www.hunting4cards.com/ | grep -iE "^(HTTP|strict|x-frame|content-security|x-content|referrer|permissions)"
+          echo "== 7 privacy page live"
+          curl -sS https://www.hunting4cards.com/privacy | grep -o "hobbyproject[^<]*" | head -1
