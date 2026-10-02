@@ -120,6 +120,14 @@ export async function verifyCode(email: string, code: string) {
   return error ? "Die code klopt niet of is verlopen." : null;
 }
 
+// The button in the email: /account?token_hash=…&type=email signs you in directly.
+export async function verifyLink(tokenHash: string) {
+  const sb = supabase();
+  if (!sb) return "Inloggen staat uit.";
+  const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
+  return error ? "Deze inloglink is verlopen of al gebruikt. Vraag een nieuwe aan." : null;
+}
+
 export async function signOut() {
   const sb = supabase();
   if (!sb) return;

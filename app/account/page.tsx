@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { sendCode, signOut, useAccount, verifyCode } from "@/lib/account";
+import { useEffect, useState } from "react";
+import { sendCode, signOut, useAccount, verifyCode, verifyLink } from "@/lib/account";
 import { useCollection } from "@/lib/collection";
 import { LOGIN_WITH_CODE } from "@/lib/account-config";
 
@@ -14,6 +14,16 @@ export default function AccountPage() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Opened from the button in the email: finish the login straight away.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    if (!tokenHash) return;
+    window.history.replaceState(null, "", "/account");
+    run(() => verifyLink(tokenHash));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function run(step: () => Promise<string | null>, after?: () => void) {
     setBusy(true);
@@ -59,7 +69,7 @@ export default function AccountPage() {
             </div>
           ) : (
             <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => verifyCode(email.trim(), code.trim())); }}>
-              <p>We hebben een code gestuurd naar <strong>{email}</strong>. Vul hem hier in.</p>
+              <p>We hebben een mail gestuurd naar <strong>{email}</strong>. Tik op de knop in die mail, of vul hier de code uit de mail in.</p>
               <label className="sr-only" htmlFor="code">Code</label>
               <input id="code" required autoComplete="one-time-code" inputMode="numeric" placeholder="Code uit de mail" value={code} onChange={(e) => setCode(e.target.value)} />
               <button className="btn btn-primary" disabled={busy}>{busy ? "Controleren…" : "Inloggen"}</button>
