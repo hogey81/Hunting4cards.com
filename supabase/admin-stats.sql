@@ -23,17 +23,12 @@ begin
     raise exception 'geen toegang' using errcode = '42501';
   end if;
 
-  -- Login mails sent: a code for a new account or for an existing one.
-  begin
-    select count(*) filter (where created_at >= today), count(*)
-      into mails_today, mails_month
-      from auth.audit_log_entries
-     where created_at >= month
-       and payload->>'action' in ('user_confirmation_requested', 'user_recovery_requested');
-  exception when others then
-    mails_today := null;
-    mails_month := null;
-  end;
+  -- Login mails sent. Supabase doesn't keep a log of them in the database, so this counts
+  -- the people who asked for a code or logged in: about one mail each.
+  select count(*) filter (where greatest(confirmation_sent_at, recovery_sent_at, last_sign_in_at) >= today),
+         count(*) filter (where greatest(confirmation_sent_at, recovery_sent_at, last_sign_in_at) >= month)
+    into mails_today, mails_month
+    from auth.users;
 
   return json_build_object(
     'users', (select count(*) from auth.users),

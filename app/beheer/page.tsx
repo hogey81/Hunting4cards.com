@@ -56,8 +56,8 @@ export default function BeheerPage() {
           <p className="muted">Bijgewerkt om {new Date(stats.at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}, ververst elke minuut.</p>
 
           <h2>Gratis limieten</h2>
-          <Meter label="Inlogmails vandaag" sub="Resend, telt per dag in UTC-tijd" value={stats.mails_today} limit={LIMITS.mailsPerDay} />
-          <Meter label="Inlogmails deze maand" sub="Resend" value={stats.mails_month} limit={LIMITS.mailsPerMonth} />
+          <Meter label="Inlogmails vandaag" sub="Resend, telt één mail per persoon" value={stats.mails_today} limit={LIMITS.mailsPerDay} />
+          <Meter label="Inlogmails deze maand" sub="Resend, telt één mail per persoon" value={stats.mails_month} limit={LIMITS.mailsPerMonth} />
           <Meter label="Actieve gebruikers (30 dagen)" sub="Supabase" value={stats.active_30d} limit={LIMITS.activeUsersPerMonth} />
           <Meter
             label="Database"
