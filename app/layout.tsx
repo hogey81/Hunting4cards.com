@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import TabBar from "@/components/TabBar";
 import { AccountSync } from "@/lib/account";
+import LoginGate from "@/components/LoginGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <main className="page">{children}</main>
         <AccountSync />
+        <LoginGate />
         <Suspense fallback={null}>
           <TabBar />
         </Suspense>
