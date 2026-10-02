@@ -389,8 +389,11 @@ a.chip { display: inline-flex; align-items: center; }
   .games-wide { max-width: 1180px; }
   .games-wide .games-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
 }
-/* Yu-Gi-Oh! (app/yugioh) */
+/* Other games (app/[game]: Yu-Gi-Oh!, Magic, Lorcana) */
 .link { color: var(--link); font-weight: 700; font-size: 14px; }
-.ygo-prints { display: flex; flex-direction: column; gap: 10px; }
-.ygo-print { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: #F1F4FF; }
-.ygo-print .muted { color: #A9B6D6; }
+.game-prints { display: flex; flex-direction: column; gap: 10px; }
+.game-print { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: #F1F4FF; }
+.game-print .muted { color: #A9B6D6; }
+.card-text { white-space: pre-line; }
+/* Scryfall's Magic set symbols are black; make them white on the navy rows. */
+img[src*="svgs.scryfall.io"] { filter: invert(1); }

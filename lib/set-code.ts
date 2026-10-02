@@ -1,6 +1,7 @@
 import codes from "./set-codes.json";
 import jpSets from "./jp-sets.json";
 import { parseRef } from "./card-ref";
+import { gameCardCode, gameOf } from "./games/refs";
 
 const SET_CODES: Record<string, string> = codes;
 
@@ -22,8 +23,8 @@ export function setIdFromCardId(cardId: string) {
 
 // Takes a card reference ("me05-048" or "ja:M4-001"). Japanese cards print their set id.
 export function cardCode(ref: string, localId?: string) {
-  // Yu-Gi-Oh! prints carry their code: "ygo:LOB-EN001~UR" -> "LOB-EN001".
-  if (ref.startsWith("ygo:")) return ref.slice(4).split("~")[0];
+  // Other games carry their code in the reference ("ygo:LOB-EN001~UR" -> "LOB-EN001").
+  if (gameOf(ref)) return gameCardCode(ref);
   const { region, id } = parseRef(ref);
   const setId = setIdFromCardId(id);
   const number = localId ?? id.slice(setId.length + 1);

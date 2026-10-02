@@ -33,8 +33,8 @@ export default function GamesPage() {
     {
       key: "magic",
       name: "Magic: The Gathering",
-      sub: "Binnenkort",
-      href: null,
+      sub: "Kaarten en sets",
+      href: "/magic",
       color: "#9A3412",
       image: "/games/magic.svg",
     },
@@ -145,8 +145,8 @@ export default function GamesPage() {
     {
       key: "lorcana",
       name: "Lorcana",
-      sub: "Binnenkort",
-      href: null,
+      sub: "Kaarten en sets",
+      href: "/lorcana",
       color: "#0E7490",
       image: "/games/lorcana.svg",
     },
