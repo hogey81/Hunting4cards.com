@@ -358,3 +358,18 @@ a.chip { display: inline-flex; align-items: center; }
 .game-name { font-family: var(--display); font-weight: 800; font-size: 24px; color: #FFD43B; }
 .game-sub { font-size: 14px; font-weight: 700; color: #F1F4FF; }
 .games-more { margin-top: 20px; text-align: center; font-weight: 500; color: #C9D3EA; }
+
+/* Account */
+.account-form { display: flex; flex-direction: column; gap: 10px; }
+.account-form input {
+  min-height: 48px; border-radius: 14px; border: 1px solid var(--line); background: var(--soft);
+  padding: 0 14px; font: inherit; font-size: 16px; color: var(--ink);
+}
+.account-form input::placeholder { color: var(--muted); }
+.account-error { color: #F59E7A !important; font-weight: 700; }
+.head-actions { display: flex; gap: 8px; }
+.save-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  background: var(--surface); color: #F1F4FF; border: 2px solid var(--accent); font-size: 14px; font-weight: 700;
+}
+.save-banner span { color: var(--accent); white-space: nowrap; }

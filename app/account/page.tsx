@@ -1,0 +1,68 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { sendCode, signOut, useAccount, verifyCode } from "@/lib/account";
+import { useCollection } from "@/lib/collection";
+
+export default function AccountPage() {
+  const { enabled, user, ready } = useAccount();
+  const { entries } = useCollection();
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(step: () => Promise<string | null>, after?: () => void) {
+    setBusy(true);
+    setError(null);
+    const err = await step();
+    setBusy(false);
+    if (err) setError(err);
+    else after?.();
+  }
+
+  return (
+    <>
+      <Link href="/collectie" className="back">← Collectie</Link>
+      <h1>Account</h1>
+
+      {!enabled ? (
+        <section className="empty">
+          <p>Inloggen is op dit moment niet beschikbaar. Je collectie staat op dit apparaat.</p>
+        </section>
+      ) : !ready ? null : user ? (
+        <section className="empty">
+          <h2>Je bent ingelogd</h2>
+          <p>{user.email}</p>
+          <p>Je collectie ({entries.length} {entries.length === 1 ? "kaart" : "kaarten"}) wordt online bewaard. Log op een ander apparaat in met hetzelfde e-mailadres om hem daar ook te zien.</p>
+          <div className="row">
+            <button className="btn" disabled={busy} onClick={() => run(async () => (await signOut(), null))}>Uitloggen</button>
+          </div>
+        </section>
+      ) : (
+        <section className="empty">
+          <h2>Bewaar je collectie online</h2>
+          <p>Log in met je e-mailadres. Zo raak je je kaarten nooit kwijt, ook niet op een nieuwe telefoon. De kaarten die nu op dit apparaat staan gaan mee.</p>
+          {!sent ? (
+            <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => sendCode(email.trim()), () => setSent(true)); }}>
+              <label className="sr-only" htmlFor="email">E-mailadres</label>
+              <input id="email" type="email" required autoComplete="email" inputMode="email" placeholder="jij@voorbeeld.nl" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <button className="btn btn-primary" disabled={busy}>{busy ? "Versturen…" : "Stuur inlogcode"}</button>
+            </form>
+          ) : (
+            <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => verifyCode(email.trim(), code.trim())); }}>
+              <p>We hebben een code gestuurd naar <strong>{email}</strong>. Vul hem hier in.</p>
+              <label className="sr-only" htmlFor="code">Code</label>
+              <input id="code" required autoComplete="one-time-code" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+              <button className="btn btn-primary" disabled={busy}>{busy ? "Controleren…" : "Inloggen"}</button>
+              <button type="button" className="btn" onClick={() => { setSent(false); setCode(""); setError(null); }}>Ander e-mailadres</button>
+            </form>
+          )}
+          {error && <p className="account-error">{error}</p>}
+        </section>
+      )}
+    </>
+  );
+}
