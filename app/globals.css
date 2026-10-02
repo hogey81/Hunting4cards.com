@@ -332,11 +332,12 @@ a.chip { display: inline-flex; align-items: center; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); pointer-events: none;
 }
 
-/* Game picker (/spellen): dark navy with gold, one wide tile per game. */
+/* Game picker (the start screen, /): dark navy with gold, one wide tile per game. */
 .games { position: fixed; inset: 0; z-index: 150; overflow-y: auto; background: #0B1630; color: #fff; padding: calc(48px + env(safe-area-inset-top)) 20px 32px; }
 .games-title { font-family: var(--display); font-size: 34px; color: #FFC928; margin: 0; }
 .games-lead { margin: 4px 0 24px; font-weight: 500; color: #C9D3EA; }
-.games-list { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+.games-inner { max-width: 520px; margin: 0 auto; }
+.games-list { display: flex; flex-direction: column; gap: 12px; }
 .game { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 20px; border: 3px solid #FFC928; color: #fff; text-decoration: none; min-height: 112px; box-sizing: border-box; }
 .game:active { transform: scale(0.98); }
 .game-soon { opacity: 0.85; }

@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 const tabs = [
   {
-    href: "/",
+    href: "/pokemon",
     label: "Home",
     icon: <path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" />,
   },
@@ -54,7 +54,7 @@ export default function TabBar() {
         const active =
           t.label === "Japans" ? japanese
           : t.label === "Sets" ? path.startsWith("/sets") && !japanese
-          : t.href === "/" ? path === "/"
+          : t.href === "/pokemon" ? path === "/pokemon"
           : path.startsWith(t.href);
         if (t.center) {
           return (
