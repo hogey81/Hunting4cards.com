@@ -154,7 +154,7 @@ export default function GamesPage() {
 
   return (
     <div className="games">
-      <div className="games-inner">
+      <div className="games-inner games-wide">
         <h1 className="games-title">Kies je spel</h1>
         <p className="games-lead">Welke kaarten wil je verzamelen?</p>
         <div className="games-list">
