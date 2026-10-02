@@ -6,18 +6,40 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: fix-search-name-set
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci && npm run build
-      - name: Test scan
+      - name: Probe
         run: |
-          (npm start -- -p 3000 > server.log 2>&1 &)
-          sleep 8
-          s() { echo "=== $1: $2"; python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1].replace('|', '\n')}))" "$2" > body.json; curl -sS -m 120 -X POST -H 'Content-Type: application/json' --data @body.json "http://localhost:3000/api/scan/$1" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('exact'), d.get('sure'), d.get('read'), d.get('language'), [(c['ref'], c['name']) for c in d.get('cards', [])])"; }
-          for q in "Gengar ex 30c" "30C Gengar" "Pikachu ex" "Gengar" "PBL 048"; do echo "=== $q"; curl -sS -G --data-urlencode "q=$q" "http://localhost:3000/api/scan" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('exact'), [(c['ref'], c['name'], c['code']) for c in d.get('cards', [])][:6])"; done
-          for p in /onepiece/scan /yugioh/scan /scan; do curl -sS -o /dev/null -w "$p %{http_code}\n" "http://localhost:3000$p"; done
-          tail -20 server.log
+          cat > p.py <<'PY'
+          import json, urllib.request, collections
+          def get(u):
+              return json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent":"Hunting4Cards/1.0"}), timeout=120).read())
+          for cid in ["30th-154", "30th-090", "30th-001", "me05-048"]:
+              c = get(f"https://api.tcgdex.net/v2/en/cards/{cid}")
+              print(cid, c.get("name"), c.get("variants_detailed"), (c.get("pricing") or {}).get("cardmarket"))
+          s = get("https://api.tcgdex.net/v2/en/sets/30th")
+          print("set", s.get("name"), s.get("cardCount"))
+          linked = 0
+          for card in s["cards"]:
+              pass
+          prods = get("https://downloads.s3.cardmarket.com/productCatalog/productList/products_singles_6.json")["products"]
+          g = [p for p in prods if p["name"].startswith("Gengar")]
+          exps = collections.Counter(p["idExpansion"] for p in g)
+          print(len(prods), sorted(g, key=lambda p: -p["idProduct"])[:12])
+          guide = {r["idProduct"]: r for r in get("https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_6.json")["priceGuides"]}
+          for p in sorted(g, key=lambda p: -p["idProduct"])[:6]:
+              print(p["idProduct"], p["name"], p["idExpansion"], guide.get(p["idProduct"], {}).get("trend"))
+          PY
+          python3 p.py
+          python3 - <<'PY'
+          import json, urllib.request
+          def get(u):
+              return json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent":"Hunting4Cards/1.0"}), timeout=120).read())
+          s = get("https://api.tcgdex.net/v2/en/sets/30th")
+          ids = [c["id"] for c in s["cards"]]
+          miss = 0
+          for cid in ids[::10]:
+              c = get(f"https://api.tcgdex.net/v2/en/cards/{cid}")
+              has = any((v.get("thirdParty") or {}).get("cardmarket") for v in (c.get("variants_detailed") or []))
+              if not has: miss += 1
+              print(cid, c["name"], has)
+          print("missing", miss, "of", len(ids[::10]))
+          PY
