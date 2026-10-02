@@ -31,7 +31,7 @@ a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
 /* Dark navy tiles on the light page: light text inside them. */
 .round-btn, .btn:not(.btn-primary), .stat, .chip:not(.on), .empty, .set-row, .price-card, .stepper, .search input,
-.home-search, .tile-card, .scan-match, .scan-popup, .tabbar, .card-hero .card-missing {
+.home-search, .tile-card, .scan-match, .scan-popup, .tabbar, .card-hero .card-missing, .meter {
   --ink: #F1F4FF; --muted: #A9B6D6; --line: #22397A; --soft: #1A2F5E; --link: #FFC928; --up: #4ADE80; --down: #F59E7A;
   color: var(--ink);
 }
@@ -405,3 +405,18 @@ img[src*="svgs.scryfall.io"] { filter: invert(1); }
 .legal h2 { font-family: var(--display); font-size: 18px; margin: 10px 0 0; }
 .legal p, .legal li { line-height: 1.5; margin: 0; }
 .legal ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Beheer: usage against the free limits */
+.beheer { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
+.beheer h2 { font-family: var(--display); font-size: 18px; margin: 10px 0 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.meter { background: var(--surface); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.meter-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.meter-head small { color: var(--muted); font-size: 12px; margin-left: 4px; }
+.meter-bar { height: 8px; border-radius: 4px; background: var(--soft, #E3E8F2); overflow: hidden; }
+.meter-bar div { height: 100%; background: var(--up, #16A34A); }
+.meter-warn .meter-bar div { background: #F59E0B; }
+.meter-danger .meter-bar div { background: var(--down); }
+.meter-note { margin: 0; font-size: 13px; font-weight: 700; color: var(--down); }
+.beheer-links a, .beheer .empty a { color: var(--link); text-decoration: underline; }
+.beheer-links { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
