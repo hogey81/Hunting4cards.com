@@ -373,3 +373,13 @@ a.chip { display: inline-flex; align-items: center; }
   background: var(--surface); color: #F1F4FF; border: 2px solid var(--accent); font-size: 14px; font-weight: 700;
 }
 .save-banner span { color: var(--accent); white-space: nowrap; }
+
+/* Login screen in front of the app (components/LoginGate.tsx), same look as the game picker. */
+.login-gate { z-index: 300; }
+.login-logo { width: 96px; height: 96px; border-radius: 22px; margin: 0 0 20px; }
+.login-card {
+  --ink: #F1F4FF; --muted: #A9B6D6; --line: #22397A; --soft: #1A2F5E;
+  background: #13244D; color: var(--ink); border: 3px solid #FFC928; border-radius: 20px; padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.login-card p { margin: 0; color: var(--muted); }
