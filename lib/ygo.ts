@@ -178,11 +178,3 @@ export function ygoPrice(card: YgoCard): PriceInfo {
 export function ygoCardmarketUrl(name: string) {
   return `https://www.cardmarket.com/en/YuGiOh/Products/Search?searchString=${encodeURIComponent(name)}`;
 }
-
-export function ygoCardHref(ref: string) {
-  return `/yugioh/kaart/${encodeURIComponent(ref.slice(YGO_PREFIX.length))}`;
-}
-
-export function ygoSetHref(code: string) {
-  return `/yugioh/sets/${encodeURIComponent(code)}`;
-}

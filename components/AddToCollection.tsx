@@ -10,6 +10,7 @@ export default function AddToCollection({
   hasReverse,
   hasHolo = false,
   languages = LANGUAGES,
+  variantNames,
 }: {
   cardRef: string;
   japanese: boolean;
@@ -17,6 +18,8 @@ export default function AddToCollection({
   hasHolo?: boolean;
   // The languages the card was printed in (Yu-Gi-Oh! has no Dutch edition).
   languages?: readonly Language[];
+  // Other names for the versions, e.g. "Foil" instead of "Reverse holo".
+  variantNames?: Partial<Record<Variant, string>>;
 }) {
   const { entries, add, setQuantity } = useCollection();
   const [picked, setPicked] = useState<Language>("EN");
@@ -48,7 +51,7 @@ export default function AddToCollection({
           <div className={variants.length > 2 ? "seg seg-3" : "seg seg-2"}>
             {variants.map((v) => (
               <button key={v} type="button" className={v === variant ? "chip on" : "chip"} aria-pressed={v === variant} onClick={() => setVariant(v)}>
-                {VARIANT_NAMES[v]}
+                {variantNames?.[v] ?? VARIANT_NAMES[v]}
               </button>
             ))}
           </div>

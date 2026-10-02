@@ -133,24 +133,37 @@ const LANGUAGE_NAMES: Record<string, string> = {
 // than the whole card. The outline is a strip (as a share of the frame; height / width).
 const GUIDE_WIDTH = 0.7;
 const GUIDE_RATIO = 1 / 4;
+// The card outline (.scan-guide in globals.css): 78% of the width, 63 × 88 mm.
+const CARD_WIDTH = 0.78;
+const CARD_RATIO = 88 / 63;
+
+// The other games: the first line with a few letters (mostly the name) tells
+// whether the same card was read twice.
+const firstLine = (text: string) => text.split("\n").map((l) => l.trim()).find((l) => (l.match(/[A-Za-z]/g) ?? []).length >= 4) ?? "";
+const keyOf = (text: string) => firstLine(text).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+export type ScanGame = { slug: string; name: string; languages: string[]; foilLabel: string | null };
 
 // Cuts the part of the video frame inside the outline (the video is shown
 // with object-fit: cover, so the visible part is centred). `screenZoom`: how much
 // the video is enlarged on screen when the camera can't zoom by itself.
-function grabGuide(video: HTMLVideoElement, screenZoom: number) {
+// For the other games the outline is the whole card (`card`): their code is in a
+// different place per game, and the name at the top helps too.
+function grabGuide(video: HTMLVideoElement, screenZoom: number, card = false) {
   // The size before the on-screen enlargement (a CSS transform, which the bounding box includes).
   const outer = video.getBoundingClientRect();
   const box = { width: outer.width / screenZoom, height: outer.height / screenZoom };
   const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight) * screenZoom;
-  const gw = box.width * GUIDE_WIDTH;
-  const gh = gw * GUIDE_RATIO;
+  const gw = box.width * (card ? CARD_WIDTH : GUIDE_WIDTH);
+  const gh = gw * (card ? CARD_RATIO : GUIDE_RATIO);
   // A margin, so a code held slightly off-centre is still complete.
   const w = Math.min(video.videoWidth, (gw * 1.1) / scale);
   const h = Math.min(video.videoHeight, (gh * 1.3) / scale);
   const canvas = document.createElement("canvas");
   // About 800 pixels wide: the code is then some 30 pixels high, what the reader
   // likes best. Larger pictures read no better but much slower on a phone.
-  const up = Math.min(3, 800 / w);
+  // A whole card is read by the phone's reader only, which likes some 1200 pixels.
+  const up = Math.min(3, (card ? 1200 : 800) / w);
   canvas.width = Math.round(w * up);
   canvas.height = Math.round(h * up);
   canvas.getContext("2d")!.drawImage(video, (video.videoWidth - w) / 2, (video.videoHeight - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
@@ -175,7 +188,7 @@ const ZOOMS = [1, 1.5, 2, 3];
 // about 10 cm. Only when the camera zooms by itself: enlarging on screen makes the picture blurrier.
 const START_ZOOM = 2;
 
-export default function Scanner() {
+export default function Scanner({ game }: { game?: ScanGame } = {}) {
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -210,6 +223,13 @@ export default function Scanner() {
   };
   const results = useRef<HTMLElement>(null);
   const screenZoom = hardwareZoom ? 1 : zoom;
+  const languages: readonly string[] = game?.languages ?? LANGUAGES;
+  const toLanguage = (l: string): Language => (languages.includes(l) ? l : languages[0] ?? "EN") as Language;
+  // The versions you can pick: Pokémon's three, or normal and the game's foil.
+  const variantNames: Partial<Record<Variant, string>> = game
+    ? { normal: "Normaal", ...(game.foilLabel ? { reverse: game.foilLabel } : {}) }
+    : VARIANT_NAMES;
+  const scanUrl = game ? `/api/scan/${game.slug}` : "/api/scan";
 
   function stopCamera() {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -222,7 +242,7 @@ export default function Scanner() {
     ocrWorker().catch(() => {});
     // Start the camera's readers and wake the server now, so the first card isn't slow.
     liveWorker().catch(() => {});
-    fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "" }) }).catch(() => {});
+    fetch(scanUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "" }) }).catch(() => {});
     return () => {
       mounted.current = false;
       stopCamera();
@@ -285,7 +305,7 @@ export default function Scanner() {
   // Shows the card in the middle of the screen; `sure` false asks "Is dit je kaart?".
   function showCard(data: { cards: ScanMatch[]; exact: boolean; read: string; language: string }, sure: boolean) {
     setPhoto(null);
-    const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? (data.language as Language) : "EN";
+    const language = toLanguage(data.language);
     setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
     navigator.vibrate?.(60);
     setFound(data.cards[0].name);
@@ -327,7 +347,9 @@ export default function Scanner() {
     const answers = new Map<string, { res: Response | null; data: ScanAnswer | null }>();
     (async () => {
       let phone = phoneReader();
-      let worker = phone ? null : await liveWorker().catch(() => null);
+      // A whole card needs all letters, so the other games use the photo reader as the slow fallback.
+      const fallback = () => (game ? ocrWorker() : liveWorker());
+      let worker = phone ? null : await fallback().catch(() => null);
       let frame = 0;
       while (active && (phone || worker)) {
         await new Promise((r) => setTimeout(r, 15));
@@ -337,9 +359,14 @@ export default function Scanner() {
         try {
           if (phone) {
             // Lines of text found, top to bottom, left to right.
-            const found = await phone.detect(grabGuide(v, zoomRef.current));
+            const found = await phone.detect(grabGuide(v, zoomRef.current, !!game));
             found.sort((a, b) => a.boundingBox.y - b.boundingBox.y || a.boundingBox.x - b.boundingBox.x);
-            lines = [found.map((t) => t.rawValue).join(" ").toUpperCase().replace(/\s+/g, " ").trim()];
+            // A whole card keeps its lines: the name is the first one.
+            lines = game
+              ? [found.map((t) => t.rawValue.trim()).filter(Boolean).join("\n")]
+              : [found.map((t) => t.rawValue).join(" ").toUpperCase().replace(/\s+/g, " ").trim()];
+          } else if (game) {
+            lines = [(await worker!.recognize(grabGuide(v, zoomRef.current, true))).data.text.trim()];
           } else {
             // Each frame cleaned up the next way (see CLEANUPS).
             const how = CLEANUPS[frame++ % CLEANUPS.length];
@@ -349,7 +376,7 @@ export default function Scanner() {
           if (phone) {
             // The phone's reader doesn't work here after all: use the other one.
             phone = null;
-            worker = await liveWorker().catch(() => null);
+            worker = await fallback().catch(() => null);
             continue;
           }
           continue; // one failed frame must not stop the scanning
@@ -357,16 +384,18 @@ export default function Scanner() {
         if (!active) return;
         // The read with a code, preferring one with the set letters before it; the
         // other reads go along, the set code may be only in one of them.
-        const withCode = lines.filter((l) => codeIn(l)).sort((a, b) => codeIn(b)!.length - codeIn(a)!.length);
-        const line = [...withCode, ...lines.filter((l) => !withCode.includes(l))].join(" \n ");
-        const code = withCode.length ? codeIn(withCode[0]) : null;
+        // Pokémon: the code. Other games: the whole card, known again by its first line.
+        const withCode = game ? lines.filter((l) => keyOf(l)) : lines.filter((l) => codeIn(l)).sort((a, b) => codeIn(b)!.length - codeIn(a)!.length);
+        const line = game ? (withCode[0] ?? "") : [...withCode, ...lines.filter((l) => !withCode.includes(l))].join(" \n ");
+        const code = !withCode.length ? null : game ? firstLine(withCode[0]) : codeIn(withCode[0]);
+        const numbersIn = (c: string) => (game ? keyOf(c) : numbersOf(c));
         // Two cleanups reading the same numbers in one frame is as good as two frames.
-        const agree = withCode.length > 1 && withCode.filter((l) => numbersOf(codeIn(l)!) === numbersOf(code!)).length > 1;
-        if (code) setLastCode(code);
+        const agree = !game && withCode.length > 1 && withCode.filter((l) => numbersOf(codeIn(l)!) === numbersOf(code!)).length > 1;
+        if (code && !game) setLastCode(code);
         setSeen(
-          !code ? "" : numbersOf(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `Code gelezen: ${code} · even stilhouden…`,
+          !code ? "" : numbersIn(code) === missed ? `${code} · niet gevonden, houd de kaart stil of iets dichterbij` : `${game ? "Gelezen" : "Code gelezen"}: ${code} · even stilhouden…`,
         );
-        const numbers = code ? numbersOf(code) : "";
+        const numbers = code ? numbersIn(code) : "";
         recent.push(numbers);
         if (recent.length > 9) recent.shift();
         const steady = !!code && (agree || recent.filter((n) => n === numbers).length >= 2);
@@ -384,13 +413,15 @@ export default function Scanner() {
         }
         // Nothing read, or this exact text already looked up.
         if (!code || numbers === last || (code === posted && !steady)) continue;
+        // A whole card is only looked up once read the same twice: a passing blur reads as other text.
+        if (game && !steady) continue;
         posted = code;
         // The whole line: the set code may stand apart from the number ("G SVIEN 047/198").
-        let answer = answers.get(code);
+        let answer = answers.get(numbers);
         if (!answer) {
           const res = await post(line).catch(() => null);
           answer = { res, data: res?.ok ? await res.json().catch(() => null) : null };
-          if (answer.data) answers.set(code, answer);
+          if (answer.data) answers.set(numbers, answer);
         }
         const { res, data } = answer;
         if (!active) return;
@@ -422,7 +453,7 @@ export default function Scanner() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       if (onlyIfExact && !data.exact) return false;
-      const language: Language = (LANGUAGES as readonly string[]).includes(data.language) ? data.language : "EN";
+      const language = toLanguage(data.language);
       setPhase({ step: "done", cards: data.cards, exact: data.exact, read: data.read, language });
       return data.exact as boolean;
     } catch (e) {
@@ -433,7 +464,7 @@ export default function Scanner() {
   }
 
   const post = (text: string) =>
-    fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    fetch(scanUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
 
   async function onPhoto(file: File | undefined) {
     if (!file) return;
@@ -443,13 +474,15 @@ export default function Scanner() {
     try {
       let text = "";
       let done = 0;
-      for (const [i, parts] of STEPS.entries()) {
+      const steps = game ? [[[0, 1, 2000, 2]] as [number, number, number, number][]] : STEPS;
+      const passes = steps.flat().length;
+      for (const [i, parts] of steps.entries()) {
         const before = done;
-        text += "\n" + (await readParts(file, parts, (p) => setPhase({ step: "reading", progress: (before + p * parts.length) / PASSES })));
+        text += "\n" + (await readParts(file, parts, (p) => setPhase({ step: "reading", progress: (before + p * parts.length) / passes })));
         done += parts.length;
-        const last = i === STEPS.length - 1;
-        if (await lookup(post(text), !last)) return;
-        if (!last) setPhase({ step: "reading", progress: done / PASSES });
+        const last = i === steps.length - 1;
+        if (await lookup(post(text.trim()), !last)) return;
+        if (!last) setPhase({ step: "reading", progress: done / passes });
       }
     } catch {
       setPhase({ step: "error", message: "De foto kon niet gelezen worden. Probeer het opnieuw of typ de code." });
@@ -459,7 +492,7 @@ export default function Scanner() {
   function onTyped(e: React.FormEvent) {
     e.preventDefault();
     const q = typed.trim();
-    if (q.length >= 2) lookup(fetch(`/api/scan?${new URLSearchParams({ q })}`));
+    if (q.length >= 2) lookup(fetch(`${scanUrl}?${new URLSearchParams({ q })}`));
   }
 
   const busy = phase.step === "reading" || phase.step === "searching";
@@ -467,7 +500,7 @@ export default function Scanner() {
   return (
     <>
       <header className="head">
-        <h1>Kaart scannen</h1>
+        <h1>{game ? `${game.name} scannen` : "Kaart scannen"}</h1>
       </header>
 
       <div className={live ? "scan-frame live" : "scan-frame"}>
@@ -481,7 +514,14 @@ export default function Scanner() {
               muted
               onClick={tapToFocus}
             />
-            <div className="scan-guide code" aria-hidden="true" />
+            <div className={game ? "scan-guide" : "scan-guide code"} aria-hidden="true" />
+            {game ? (
+              <div className="scan-howto">
+                <span>
+                  Houd de <strong>hele kaart</strong> binnen het kader, recht en stil
+                </span>
+              </div>
+            ) : (
             <div className="scan-howto">
               <svg width="30" height="42" viewBox="0 0 30 42" aria-hidden="true">
                 <rect x="1" y="1" width="28" height="40" rx="3" fill="none" stroke="#fff" strokeWidth="2" />
@@ -493,12 +533,13 @@ export default function Scanner() {
                 bv. <strong>PFL EN 120/094</strong>
               </span>
             </div>
+            )}
             <span className="scan-seen" role="status">
               {seen
                 ? seen
                 : found
                   ? `✓ ${found} gevonden · leg de volgende kaart neer`
-                  : "Zoeken naar de code onderaan de kaart…"}
+                  : game ? "Kaart zoeken…" : "Zoeken naar de code onderaan de kaart…"}
             </span>
             {popup && (() => {
               const language: Language = parseRef(popup.ref).region === "ja" ? "JP" : phase.step === "done" ? phase.language : "EN";
@@ -524,9 +565,9 @@ export default function Scanner() {
                       ))}
                     </div>
                     <div className="scan-popup-pick seg-ver" role="group" aria-label="Versie">
-                      {(Object.keys(VARIANT_NAMES) as Variant[]).map((v) => (
+                      {(Object.keys(variantNames) as Variant[]).map((v) => (
                         <button key={v} type="button" aria-pressed={v === variant} className={v === variant ? "chip on" : "chip"} onClick={() => setVariant(v)}>
-                          {VARIANT_NAMES[v]}
+                          {variantNames[v]}
                         </button>
                       ))}
                     </div>
@@ -561,7 +602,11 @@ export default function Scanner() {
               <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
               <rect x="8" y="7" width="8" height="10" rx="1" />
             </svg>
-            <span>Leg de kaart plat op tafel en houd je telefoon er recht boven. Zorg dat de code linksonder (bv. 30C 100/128) scherp is.</span>
+            <span>
+              {game
+                ? "Leg de kaart plat op tafel en houd je telefoon er recht boven, met de hele kaart in beeld."
+                : "Leg de kaart plat op tafel en houd je telefoon er recht boven. Zorg dat de code linksonder (bv. 30C 100/128) scherp is."}
+            </span>
           </div>
         )}
         {busy && (
@@ -606,8 +651,10 @@ export default function Scanner() {
           <p className="muted">
             Gelezen: <strong>{phase.read}</strong>.{" "}
             {phase.cards.length === 0
-              ? "Geen kaart herkend. Maak een scherpere foto van dichtbij, of typ hieronder de code die linksonder op de kaart staat (bv. 30C 100)."
-              : phase.exact ? "Is dit je kaart?" : "Welke is het? Staat hij er niet tussen, typ dan de code hieronder."}
+              ? game
+                ? "Geen kaart herkend. Maak een scherpere foto met de hele kaart in beeld, of typ hieronder de naam."
+                : "Geen kaart herkend. Maak een scherpere foto van dichtbij, of typ hieronder de code die linksonder op de kaart staat (bv. 30C 100)."
+              : phase.exact ? "Is dit je kaart?" : `Welke is het? Staat hij er niet tussen, typ dan de ${game ? "naam" : "code"} hieronder.`}
           </p>
           {phase.cards.length > 0 && (
             <label className="scan-condition">
@@ -648,7 +695,7 @@ export default function Scanner() {
 
       <form className="search" onSubmit={onTyped}>
         <label htmlFor="code" className="sr-only">Of typ de code</label>
-        <input id="code" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Of typ de code, bv. PAL 123" autoComplete="off" />
+        <input id="code" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={game ? "Of typ de naam of code" : "Of typ de code, bv. PAL 123"} autoComplete="off" />
         <button type="submit" className="btn" disabled={busy}>Zoek</button>
       </form>
     </>

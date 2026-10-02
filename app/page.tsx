@@ -10,8 +10,8 @@ type Game = {
 };
 
 // The game picker: one tile per game, each with its own badge picture from
-// public/games/ (no characters or brand logos, so no rights issues). The start screen; Pokémon opens the Pokémon part (/pokemon); the
-// others are coming.
+// public/games/ (no characters or brand logos, so no rights issues). The start screen;
+// the games with a card source open their part (/pokemon, /magic, ...), the others are coming.
 export default function GamesPage() {
   const games: Game[] = [
     {
@@ -33,18 +33,50 @@ export default function GamesPage() {
     {
       key: "magic",
       name: "Magic: The Gathering",
-      sub: "Binnenkort",
-      href: null,
+      sub: "Kaarten en sets",
+      href: "/magic",
       color: "#9A3412",
       image: "/games/magic.svg",
     },
     {
       key: "onepiece",
       name: "One Piece",
-      sub: "Binnenkort",
-      href: null,
+      sub: "Kaarten en sets",
+      href: "/onepiece",
       color: "#B91C1C",
       image: "/games/onepiece.svg",
+    },
+    {
+      key: "lorcana",
+      name: "Lorcana",
+      sub: "Kaarten en sets",
+      href: "/lorcana",
+      color: "#0E7490",
+      image: "/games/lorcana.svg",
+    },
+    {
+      key: "starwars",
+      name: "Star Wars: Unlimited",
+      sub: "Kaarten en sets",
+      href: "/starwars",
+      color: "#334155",
+      image: "/games/starwars.svg",
+    },
+    {
+      key: "digimon",
+      name: "Digimon",
+      sub: "Kaarten en sets",
+      href: "/digimon",
+      color: "#0369A1",
+      image: "/games/digimon.svg",
+    },
+    {
+      key: "fab",
+      name: "Flesh and Blood",
+      sub: "Kaarten en sets",
+      href: "/fab",
+      color: "#7F1D1D",
+      image: "/games/fab.svg",
     },
     {
       key: "riftbound",
@@ -71,36 +103,12 @@ export default function GamesPage() {
       image: "/games/dragonball.svg",
     },
     {
-      key: "digimon",
-      name: "Digimon",
-      sub: "Binnenkort",
-      href: null,
-      color: "#0369A1",
-      image: "/games/digimon.svg",
-    },
-    {
       key: "gundam",
       name: "Gundam",
       sub: "Binnenkort",
       href: null,
       color: "#1E40AF",
       image: "/games/gundam.svg",
-    },
-    {
-      key: "fab",
-      name: "Flesh and Blood",
-      sub: "Binnenkort",
-      href: null,
-      color: "#7F1D1D",
-      image: "/games/fab.svg",
-    },
-    {
-      key: "starwars",
-      name: "Star Wars: Unlimited",
-      sub: "Binnenkort",
-      href: null,
-      color: "#334155",
-      image: "/games/starwars.svg",
     },
     {
       key: "vanguard",
@@ -141,14 +149,6 @@ export default function GamesPage() {
       href: null,
       color: "#15803D",
       image: "/games/wk2026.svg",
-    },
-    {
-      key: "lorcana",
-      name: "Lorcana",
-      sub: "Binnenkort",
-      href: null,
-      color: "#0E7490",
-      image: "/games/lorcana.svg",
     },
   ];
 

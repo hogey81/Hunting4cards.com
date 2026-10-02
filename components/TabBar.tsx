@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { GAME_PATHS } from "@/lib/games/refs";
 
 const tabs = [
   {
@@ -46,15 +47,15 @@ const tabs = [
 
 const gridIcon = tabs[3].icon;
 
-// In the Yu-Gi-Oh! part: its own home and sets, search in the middle (the
-// scanner only knows Pokémon cards) and a way back to the game picker.
+// In the other games (Yu-Gi-Oh!, Magic, Lorcana, ...): their own home, scanner and
+// sets, and a way back to the game picker. Search is on the game's home.
 type Tab = { href: string; label: string; center?: boolean; icon: React.ReactNode };
 
-const ygoTabs: Tab[] = [
-  { ...tabs[0], href: "/yugioh" },
+const gameTabs = (base: string): Tab[] => [
+  { ...tabs[0], href: base },
   tabs[1],
-  { href: "/yugioh/zoeken", label: "Zoeken", center: true, icon: null },
-  { href: "/yugioh/sets", label: "Sets", icon: gridIcon },
+  { href: `${base}/scan`, label: "Scannen", center: true, icon: null },
+  { href: `${base}/sets`, label: "Sets", icon: gridIcon },
   {
     href: "/",
     label: "Spellen",
@@ -70,7 +71,8 @@ const ygoTabs: Tab[] = [
 export default function TabBar() {
   const path = usePathname();
   const params = useSearchParams();
-  if (path.startsWith("/yugioh")) return <YgoTabBar path={path} />;
+  const game = Object.values(GAME_PATHS).find((base) => path === base || path.startsWith(`${base}/`));
+  if (game) return <GameTabBar base={game} path={path} />;
   const japanese = path.startsWith("/jp/") || (path === "/sets" && params.get("regio") === "jp");
   return (
     <nav className="tabbar" aria-label="Hoofdmenu">
@@ -103,17 +105,17 @@ export default function TabBar() {
   );
 }
 
-function YgoTabBar({ path }: { path: string }) {
+function GameTabBar({ base, path }: { base: string; path: string }) {
   return (
     <nav className="tabbar" aria-label="Hoofdmenu">
-      {ygoTabs.map((t) => {
-        const active = t.href === "/yugioh" ? path === "/yugioh" : t.href !== "/" && path.startsWith(t.href);
+      {gameTabs(base).map((t) => {
+        const active = t.href === base ? path === base : t.href !== "/" && path.startsWith(t.href);
         if (t.center) {
           return (
-            <Link key={t.href} href={t.href} className={active ? "tab-center active" : "tab-center"} aria-label="Kaart zoeken" aria-current={active ? "page" : undefined}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="6.5" />
-                <path d="M16 16l4.5 4.5" />
+            <Link key={t.href} href={t.href} className={active ? "tab-center active" : "tab-center"} aria-label="Kaart scannen" aria-current={active ? "page" : undefined}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+                <circle cx="12" cy="13" r="3.5" />
               </svg>
             </Link>
           );

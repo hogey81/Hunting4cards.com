@@ -1,8 +1,9 @@
 import type { Region } from "./tcgdex";
-import { YGO_PREFIX, ygoCardHref, ygoSetHref } from "./ygo";
+import { gameCardHref, gameOf, gameSetHref, gameSetPrefix, gameSetRef } from "./games/refs";
 
 // A card reference is the TCGdex id, prefixed with "ja:" for Japanese cards
-// ("me05-048" or "ja:M4-001"), or a Yu-Gi-Oh! print ("ygo:LOB-EN001~UR", see lib/ygo.ts).
+// ("me05-048" or "ja:M4-001"), or a card of another game ("ygo:…", "mtg:…", "lor:…",
+// see lib/games/refs.ts).
 // The collection stores these references.
 
 export function parseRef(ref: string): { region: Region; id: string } {
@@ -13,10 +14,11 @@ export function toRef(region: Region, id: string) {
   return region === "ja" ? `ja:${id}` : id;
 }
 
-export const isYgo = (ref: string) => ref.startsWith(YGO_PREFIX);
+// A card of another game than Pokémon.
+export const isOtherGame = (ref: string) => gameOf(ref) !== null;
 
 export function cardHref(ref: string) {
-  if (isYgo(ref)) return ygoCardHref(ref);
+  if (isOtherGame(ref)) return gameCardHref(ref);
   const { region, id } = parseRef(ref);
   return region === "ja" ? `/jp/kaart/${encodeURIComponent(id)}` : `/kaart/${encodeURIComponent(id)}`;
 }
@@ -28,12 +30,18 @@ export function setHref(region: Region, setId: string) {
 // The sets the collection has cards from, as references like "me05" or "ja:M4"
 // (card references are "<set>-<number>").
 export function mySetRefs(entries: { cardId: string }[]) {
-  return [...new Set(entries.map((e) => e.cardId.slice(0, Math.max(0, e.cardId.lastIndexOf("-")))).filter(Boolean))];
+  const setOf = (id: string) => (isOtherGame(id) ? gameSetRef(id) : id.slice(0, Math.max(0, id.lastIndexOf("-"))));
+  return [...new Set(entries.map((e) => setOf(e.cardId)).filter(Boolean))];
 }
 
-// Link for a set reference from mySetRefs ("me05", "ja:M4" or "ygo:LOB").
+// What the card references in a set start with ("me05-", "mtg:mkm/").
+export function setPrefix(setRef: string) {
+  return isOtherGame(setRef) ? gameSetPrefix(setRef) : `${setRef}-`;
+}
+
+// Link for a set reference from mySetRefs ("me05", "ja:M4", "ygo:LOB", "mtg:mkm").
 export function setRefHref(ref: string) {
-  if (isYgo(ref)) return ygoSetHref(ref.slice(YGO_PREFIX.length));
+  if (isOtherGame(ref)) return gameSetHref(ref);
   const { region, id } = parseRef(ref);
   return setHref(region, id);
 }

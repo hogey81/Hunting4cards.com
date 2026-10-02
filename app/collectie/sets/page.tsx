@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import SetLogo from "@/components/SetLogo";
 import SetProgress from "@/components/SetProgress";
 import { useCollection } from "@/lib/collection";
-import { mySetRefs, setRefHref } from "@/lib/card-ref";
+import { mySetRefs, setPrefix, setRefHref } from "@/lib/card-ref";
 import type { MySet } from "@/app/api/sets/route";
 
 // The sets someone has cards from, newest first, grouped like the sets page.
@@ -58,7 +58,7 @@ export default function MySetsPage() {
                     <div className="set-name">
                       {set.name} <span className="set-code">{set.code}</span>
                     </div>
-                    <SetProgress prefix={`${set.ref}-`} total={set.total} />
+                    <SetProgress prefix={setPrefix(set.ref)} total={set.total} />
                   </div>
                 </Link>
               );
