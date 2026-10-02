@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = { title: "Privacyverklaring · Hunting4Cards" };
 
 // Who is responsible for the data (AVG: "verwerkingsverantwoordelijke").
-const OWNER = "Hunting4Cards";
+const OWNER = "Hunting4Cards.com";
 const CONTACT = "privacy@hunting4cards.com";
 
 // Required by Google Play and the App Store, and by the AVG. Keep it in line with what the app really does.
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <p>Hunting4Cards is een app om je verzamelkaarten bij te houden, met prijzen van Cardmarket. We verzamelen zo weinig mogelijk gegevens en verkopen niets door.</p>
 
       <h2>Wie is verantwoordelijk</h2>
-      <p>{OWNER} is verantwoordelijk voor de verwerking van je gegevens. Je bereikt ons via <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.</p>
+      <p>{OWNER} is een hobbyproject van een particuliere maker, die verantwoordelijk is voor de verwerking van je gegevens. Je bereikt ons via <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.</p>
 
       <h2>Welke gegevens we bewaren, en waarom</h2>
       <ul>
