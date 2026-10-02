@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { signOut, useAccount, verifyLink } from "@/lib/account";
+import { deleteAccount, signOut, useAccount, verifyLink } from "@/lib/account";
 import LoginForm from "@/components/LoginForm";
 import { useCollection } from "@/lib/collection";
 
@@ -44,20 +44,40 @@ export default function AccountPage() {
           <p>Inloggen is op dit moment niet beschikbaar. Je collectie staat op dit apparaat.</p>
         </section>
       ) : !ready ? null : user ? (
-        <section className="empty">
-          <h2>Je bent ingelogd</h2>
-          <p>{user.email}</p>
-          <p>Je collectie ({entries.length} {entries.length === 1 ? "kaart" : "kaarten"}) wordt online bewaard. Log op een ander apparaat in met hetzelfde e-mailadres om hem daar ook te zien.</p>
-          <div className="row">
-            <button className="btn" disabled={busy} onClick={() => run(async () => (await signOut(), null))}>Uitloggen</button>
-          </div>
-        </section>
+        <>
+          <section className="empty">
+            <h2>Je bent ingelogd</h2>
+            <p>{user.email}</p>
+            <p>Je collectie ({entries.length} {entries.length === 1 ? "kaart" : "kaarten"}) wordt online bewaard. Log op een ander apparaat in met hetzelfde e-mailadres om hem daar ook te zien.</p>
+            <div className="row">
+              <button className="btn" disabled={busy} onClick={() => run(async () => (await signOut(), null))}>Uitloggen</button>
+            </div>
+          </section>
+          <section className="empty">
+            <h2>Account verwijderen</h2>
+            <p>Hiermee verwijder je je account en je online collectie voorgoed. Dit kan niet ongedaan worden gemaakt.</p>
+            <div className="row">
+              <button
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Weet je het zeker? Je account en je collectie worden voorgoed verwijderd.")) run(deleteAccount, () => router.replace("/"));
+                }}
+              >
+                Account verwijderen
+              </button>
+            </div>
+            {error && <p className="account-error">{error}</p>}
+          </section>
+        </>
       ) : (
         <section className="empty">
           <h2>Inloggen</h2>
           <LoginForm />
         </section>
       )}
+
+      <p className="muted small-print"><Link href="/privacy">Privacyverklaring</Link></p>
     </>
   );
 }

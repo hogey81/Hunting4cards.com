@@ -16,7 +16,7 @@ export default function LoginGate() {
   // only shows on the real site; test links work without logging in.
   const [testLink, setTestLink] = useState(false);
   useEffect(() => setTestLink(window.location.hostname.endsWith(".vercel.app")), []);
-  if (!enabled || user || testLink || path === "/" || path === "/account") return null;
+  if (!enabled || user || testLink || path === "/" || path === "/account" || path === "/privacy") return null;
   return (
     <div className="games login-gate">
       {ready && (
@@ -28,6 +28,7 @@ export default function LoginGate() {
             <LoginForm />
           </section>
           <Link className="login-back" href="/">‹ Terug naar de spellen</Link>
+          <Link className="login-privacy" href="/privacy">Privacyverklaring</Link>
         </div>
       )}
     </div>

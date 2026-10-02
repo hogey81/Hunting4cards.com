@@ -1,8 +1,22 @@
 <!doctype html>
 <html lang="nl">
-  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Hunting4Cards</title></head>
-  <body style="font-family: sans-serif; padding: 24px">
-    <!-- Only shown when the website can't be reached: the app loads https://hunting4cards-com.vercel.app (see capacitor.config.json). -->
-    <p>Geen verbinding. Controleer je internet en open de app opnieuw.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Hunting4Cards</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #070E19; color: #F1F4FF; font-family: system-ui, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      p { color: #A9B6D6; margin: 0 0 24px; line-height: 1.5; }
+      a { display: inline-block; background: #FFC928; color: #0B1630; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <!-- Shown when the website can't be reached (server.errorPath in capacitor.config.json). -->
+    <main>
+      <h1>Geen verbinding</h1>
+      <p>Hunting4Cards heeft internet nodig voor kaarten en prijzen.<br />Controleer je verbinding en probeer het opnieuw.</p>
+      <a href="https://www.hunting4cards.com/">Opnieuw proberen</a>
+    </main>
   </body>
 </html>

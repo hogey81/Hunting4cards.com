@@ -128,6 +128,17 @@ export async function verifyLink(tokenHash: string) {
   return error ? "Deze inloglink is verlopen of al gebruikt. Vraag een nieuwe aan." : null;
 }
 
+// Deletes the account and its online collection for good (supabase/delete-account.sql),
+// then clears this device like a logout.
+export async function deleteAccount() {
+  const sb = supabase();
+  if (!sb) return "Inloggen staat uit.";
+  const { error } = await sb.rpc("delete_my_account");
+  if (error) return "Je account kon niet worden verwijderd. Probeer het later opnieuw.";
+  await signOut();
+  return null;
+}
+
 export async function signOut() {
   const sb = supabase();
   if (!sb) return;
