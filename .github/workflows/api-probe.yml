@@ -8,45 +8,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: more-games-cards
+          ref: scan-other-games
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci && npm run build
-      - name: Test pages
+      - name: Test scan
         run: |
           (npm start -- -p 3000 > server.log 2>&1 &)
           sleep 8
-          t() { echo "=== $1"; curl -sS -m 120 -o page.html -w "%{http_code} %{time_total}s\n" "http://localhost:3000$1"; python3 - "$2" <<'PY'
-          import re, sys, html
-          s = open("page.html").read()
-          s = re.sub(r"<script.*?</script>|<style.*?</style>", " ", s, flags=re.S)
-          t = html.unescape(re.sub(r"<[^>]+>", " ", s))
-          t = re.sub(r"\s+", " ", t)
-          i = t.find(sys.argv[1]) if sys.argv[1] else 0
-          print(t[max(i,0):max(i,0)+900])
-          print("imgs:", re.findall(r'<img[^>]+src="([^"]+)"', open("page.html").read())[:3])
-          PY
-          }
-          t /starwars "Nieuwste"
-          t /onepiece/kaart/OP-01/OP01-120 "Shanks"
-          t /onepiece/kaart/OP-01/OP01-120_p1 "Shanks"
-          t "/onepiece/zoeken?q=zoro" ""
-          t /digimon/kaart/BT1-084 "Omnimon"
-          t "/digimon/zoeken?q=agumon" ""
-          t /starwars "Star Wars"
-          t /starwars/sets/SOR ""
-          t /starwars/kaart/SOR/051 ""
-          t /starwars/kaart/SOR/317 ""
-          t "/starwars/zoeken?q=luke+skywalker" ""
-          t /fab "Flesh"
-          t /fab/sets/MST ""
-          t /fab/kaart/1HP/360 "Command"
-          t "/fab/zoeken?q=command" ""
-          t /lorcana/kaart/1/42 ""
-          t /lorcana/kaart/1/207 ""
-          echo "=== prices"
-          curl -sS -m 180 "http://localhost:3000/api/prices?ids=op:OP-01/OP01-120,op:OP-01/OP01-120_p1,dgm:BT1-084,swu:SOR/051,fab:1HP/360,lor:1/42,lor:1/207,mtg:mkm/1,ygo:LOB-EN001~UR" | head -c 4000; echo
-          echo "=== sets api"
-          curl -sS -m 120 "http://localhost:3000/api/sets?ids=op:OP-01,dgm:BT1,swu:SOR,fab:MST,lor:1" | head -c 2000; echo
-          echo "=== server log"; tail -40 server.log
+          s() { echo "=== $1: $2"; python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1].replace('|', '\n')}))" "$2" > body.json; curl -sS -m 120 -X POST -H 'Content-Type: application/json' --data @body.json "http://localhost:3000/api/scan/$1" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('exact'), d.get('sure'), d.get('read'), d.get('language'), [(c['ref'], c['name']) for c in d.get('cards', [])])"; }
+          s yugioh "Blue-Eyes White Dragon|[DRAGON/NORMAL]|LOB-EN001|This legendary dragon"
+          s yugioh "Dark Magician|SDY-DE006|Der ultimative Magier"
+          s yugioh "Dark Magician|[SPELLCASTER/NORMAL]|The ultimate wizard"
+          s onepiece "Shanks|CHARACTER|OP01-120|SEC"
+          s onepiece "Roronoa Zoro|LEADER|0P01-001"
+          s digimon "Omnimon|BT1-084|SR"
+          s digimon "Agumon|Rookie"
+          s lorcana "Elsa|Spirit of Winter|Shift 6|42/204 • EN • 1"
+          s lorcana "Elsa|Spirit of Winter|DEEP FREEZE"
+          s magic "Case of the Shattered Pact|Enchantment - Case|0001 U|MKM • EN"
+          s magic "Lightning Bolt|Instant|Lightning Bolt deals 3 damage"
+          s starwars "Luke Skywalker|Jedi Knight|051/252 • SOR • EN"
+          s starwars "Luke Skywalker|Jedi Knight|RESTORE 3"
+          s fab "Command and Conquer|Generic Action - Attack|1HP360"
+          s fab "Head Shot|Ranger Action"
+          echo "=== GET"; curl -sS "http://localhost:3000/api/scan/onepiece?q=OP01-120" | head -c 400; echo
+          for p in /onepiece/scan /yugioh/scan /scan; do curl -sS -o /dev/null -w "$p %{http_code}\n" "http://localhost:3000$p"; done
+          tail -20 server.log
