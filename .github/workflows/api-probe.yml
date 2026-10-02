@@ -6,66 +6,52 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe card APIs
+      - uses: actions/checkout@v4
+        with:
+          ref: more-games-cards
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+      - name: Test pages
         run: |
-          cat > p.py <<'PY'
-          import json, urllib.request, collections, time
-          def get(u, t=120):
-              t0=time.time()
-              r = urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent":"Hunting4Cards/1.0","Accept":"application/json"}), timeout=t).read()
-              print(f"  [{u} {len(r)} bytes {time.time()-t0:.1f}s]")
-              return json.loads(r)
-          def tryit(name, f):
-              print("=== "+name)
-              try: f()
-              except Exception as e: print("  ERR", e)
-          # Digimon
-          def dg1():
-              d = get("https://digimoncard.io/api-public/search?series=Digimon%20Card%20Game")
-              print(len(d)); print(d[0].keys())
-              c = collections.Counter(x["id"].split("-")[0] for x in d); print(sorted(c.items())[:80])
-              s = collections.Counter(n for x in d for n in (x.get("set_name") or [])); print(list(s.items())[:40])
-              print([ (x["id"], x.get("set_name"), x.get("rarity")) for x in d[:5]])
-          tryit("digimon all", dg1)
-          def dg2():
-              d = get("https://digimoncard.io/api-public/search?pack=BT-02"); print(len(d))
-              d = get("https://digimoncard.io/api-public/search?pack=BT2"); print(len(d) if isinstance(d,list) else d)
-          tryit("digimon pack", dg2)
-          for u in ["https://digimoncard.io/api-public/getSets", "https://digimoncard.io/api-public/sets", "https://digimoncard.io/api-public/getAllSets"]:
-              tryit(u, lambda u=u: print(str(get(u))[:400]))
-          # SWU
-          def swu():
-              d = get("https://api.swu-db.com/cards/sor")["data"]
-              print(collections.Counter(x.get("VariantType") for x in d))
-              for x in d:
-                  if x["Name"]=="Luke Skywalker": print({k:x.get(k) for k in ["Number","VariantType","Rarity","MarketPrice","FoilPrice","FrontArt","BackArt","DoubleSided"]})
-              s = get("https://api.swu-db.com/sets")
-              print([(x["setId"], x["fullName"], x.get("releaseDate"), x.get("parentSetId"), x["numberCards"]) for x in s])
-          tryit("swu", swu)
-          # Cardmarket SWU Luke + Lorcana Elsa + Digimon parallel + OP parallel
-          def cm():
-              for g, needle in [(21,"Luke Skywalker"),(19,"Elsa - Spirit of Winter"),(17,"(BT1-084)"),(18,"(OP01-120)"),(16,"Command and Conquer")]:
-                  d = get(f"https://downloads.s3.cardmarket.com/productCatalog/productList/products_singles_{g}.json")["products"]
-                  print(g, [ (p["idProduct"], p["name"], p["idExpansion"]) for p in d if needle in p["name"]][:12])
-          tryit("cardmarket", cm)
-          def exp():
-              for g in [16,17,18,19,21]:
-                  for u in [f"https://downloads.s3.cardmarket.com/productCatalog/expansions/expansions_{g}.json", f"https://downloads.s3.cardmarket.com/productCatalog/productList/expansions_{g}.json"]:
-                      try: print(str(get(u))[:300])
-                      except Exception as e: print(" ", u, e)
-          tryit("expansions", exp)
-          def fab():
-              s = get("https://raw.githubusercontent.com/the-fab-cube/flesh-and-blood-cards/develop/json/english/set.json")
-              print(len(s)); print(json.dumps(s[0])[:800])
-              c = get("https://raw.githubusercontent.com/the-fab-cube/flesh-and-blood-cards/develop/json/english/card.json")
-              x = [x for x in c if x["name"]=="Command and Conquer"][0]
-              print(json.dumps(x)[:2500])
-          tryit("fab", fab)
-          def op():
-              s = get("https://optcgapi.com/api/allSets/"); print(len(s), s[:3], s[-3:])
-              d = get("https://optcgapi.com/api/allDecks/"); print(len(d), d[:2])
-              x = get("https://optcgapi.com/api/sets/OP-01/")
-              print([ (c["card_image_id"], c["card_name"], c["rarity"], c["market_price"]) for c in x if c["card_set_id"] in ("OP01-120","OP01-001")])
-          tryit("op", op)
+          (npm start -- -p 3000 > server.log 2>&1 &)
+          sleep 8
+          t() { echo "=== $1"; curl -sS -m 120 -o page.html -w "%{http_code} %{time_total}s\n" "http://localhost:3000$1"; python3 - "$2" <<'PY'
+          import re, sys, html
+          s = open("page.html").read()
+          s = re.sub(r"<script.*?</script>|<style.*?</style>", " ", s, flags=re.S)
+          t = html.unescape(re.sub(r"<[^>]+>", " ", s))
+          t = re.sub(r"\s+", " ", t)
+          i = t.find(sys.argv[1]) if sys.argv[1] else 0
+          print(t[max(i,0):max(i,0)+900])
+          print("imgs:", re.findall(r'<img[^>]+src="([^"]+)"', open("page.html").read())[:3])
           PY
-          python3 p.py
+          }
+          t /onepiece "One Piece"
+          t /onepiece/sets "Boosters"
+          t /onepiece/sets/OP-01 "Romance"
+          t /onepiece/kaart/OP-01/OP01-120 "Shanks"
+          t /onepiece/kaart/OP-01/OP01-120_p1 "Shanks"
+          t "/onepiece/zoeken?q=zoro" ""
+          t /digimon "Digimon"
+          t /digimon/sets "Boosters"
+          t /digimon/sets/BT1 ""
+          t /digimon/kaart/BT1-084 "Omnimon"
+          t "/digimon/zoeken?q=agumon" ""
+          t /starwars "Star Wars"
+          t /starwars/sets/SOR ""
+          t /starwars/kaart/SOR/051 ""
+          t /starwars/kaart/SOR/317 ""
+          t "/starwars/zoeken?q=luke skywalker" ""
+          t /fab "Flesh"
+          t /fab/sets/MST ""
+          t /fab/kaart/1HP/360 "Command"
+          t "/fab/zoeken?q=command" ""
+          t /lorcana/kaart/1/42 ""
+          t /lorcana/kaart/1/207 ""
+          echo "=== prices"
+          curl -sS -m 180 "http://localhost:3000/api/prices?ids=op:OP-01/OP01-120,op:OP-01/OP01-120_p1,dgm:BT1-084,swu:SOR/051,fab:1HP/360,lor:1/42,lor:1/207,mtg:mkm/1,ygo:LOB-EN001~UR" | head -c 4000; echo
+          echo "=== sets api"
+          curl -sS -m 120 "http://localhost:3000/api/sets?ids=op:OP-01,dgm:BT1,swu:SOR,fab:MST,lor:1" | head -c 2000; echo
+          echo "=== server log"; tail -40 server.log
