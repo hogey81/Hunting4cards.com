@@ -79,8 +79,10 @@ export const starwars: Provider = {
   searchHint: "Naam, bv. Luke Skywalker",
   foilLabel: "Foil",
   async getSets() {
-    // Sets without a date (promos) go after the dated ones.
-    return (await sets()).map((s) => toSet(s)).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    // The main sets newest first, then the promo and event sets.
+    return (await sets())
+      .map((s) => toSet(s))
+      .sort((a, b) => Number(!!a.group) - Number(!!b.group) || (b.date ?? "").localeCompare(a.date ?? ""));
   },
   async getSet(code) {
     const raw = (await sets()).find((s) => s.setId.toLowerCase() === code.toLowerCase());
