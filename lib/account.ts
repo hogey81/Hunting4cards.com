@@ -106,7 +106,9 @@ export function useAccount() {
 export async function sendCode(email: string) {
   const sb = supabase();
   if (!sb) return "Inloggen staat uit.";
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  // The link brings you back to the account page of the site you asked it from.
+  const emailRedirectTo = `${window.location.origin}/account`;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo } });
   if (!error) return null;
   return error.status === 429 ? "Er zijn net te veel codes verstuurd. Probeer het over een tijdje opnieuw." : "De code kon niet worden verstuurd. Klopt het e-mailadres?";
 }

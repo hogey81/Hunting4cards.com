@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { sendCode, signOut, useAccount, verifyCode } from "@/lib/account";
 import { useCollection } from "@/lib/collection";
+import { LOGIN_WITH_CODE } from "@/lib/account-config";
 
 export default function AccountPage() {
   const { enabled, user, ready } = useAccount();
@@ -49,8 +50,13 @@ export default function AccountPage() {
             <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => sendCode(email.trim()), () => setSent(true)); }}>
               <label className="sr-only" htmlFor="email">E-mailadres</label>
               <input id="email" type="email" required autoComplete="email" inputMode="email" placeholder="jij@voorbeeld.nl" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <button className="btn btn-primary" disabled={busy}>{busy ? "Versturen…" : "Stuur inlogcode"}</button>
+              <button className="btn btn-primary" disabled={busy}>{busy ? "Versturen…" : LOGIN_WITH_CODE ? "Stuur inlogcode" : "Stuur inloglink"}</button>
             </form>
+          ) : !LOGIN_WITH_CODE ? (
+            <div className="account-form">
+              <p>We hebben een mail gestuurd naar <strong>{email}</strong>. Tik op de link in die mail om in te loggen. Geen mail gezien? Kijk ook even bij spam.</p>
+              <button type="button" className="btn" onClick={() => { setSent(false); setError(null); }}>Ander e-mailadres</button>
+            </div>
           ) : (
             <form className="account-form" onSubmit={(e) => { e.preventDefault(); run(() => verifyCode(email.trim(), code.trim())); }}>
               <p>We hebben een code gestuurd naar <strong>{email}</strong>. Vul hem hier in.</p>
