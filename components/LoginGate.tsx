@@ -16,7 +16,7 @@ export default function LoginGate() {
         <div className="games-inner">
           <img className="login-logo" src="/icon-192.png" alt="" width={96} height={96} />
           <h1 className="games-title">Welkom bij Hunting4Cards</h1>
-          <p className="games-lead">Log in met je e-mailadres. Je krijgt een mail met een inlogknop en een code, een wachtwoord is niet nodig. Je collectie wordt online bewaard, dus je raakt hem nooit kwijt.</p>
+          <p className="games-lead">Log in met je e-mailadres. Je krijgt een mail met een inlogknop en een code, een wachtwoord is niet nodig. Je collectie wordt tevens online bewaard!</p>
           <section className="login-card">
             <LoginForm />
           </section>
