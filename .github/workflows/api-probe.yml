@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: scan-other-games
+          ref: fix-search-name-set
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -18,21 +18,6 @@ jobs:
           (npm start -- -p 3000 > server.log 2>&1 &)
           sleep 8
           s() { echo "=== $1: $2"; python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1].replace('|', '\n')}))" "$2" > body.json; curl -sS -m 120 -X POST -H 'Content-Type: application/json' --data @body.json "http://localhost:3000/api/scan/$1" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('exact'), d.get('sure'), d.get('read'), d.get('language'), [(c['ref'], c['name']) for c in d.get('cards', [])])"; }
-          s yugioh "Blue-Eyes White Dragon|[DRAGON/NORMAL]|LOB-EN001|This legendary dragon"
-          s yugioh "Dark Magician|SDY-DE006|Der ultimative Magier"
-          s yugioh "Dark Magician|[SPELLCASTER/NORMAL]|The ultimate wizard"
-          s onepiece "Shanks|CHARACTER|OP01-120|SEC"
-          s onepiece "Roronoa Zoro|LEADER|0P01-001"
-          s digimon "Omnimon|BT1-084|SR"
-          s digimon "Agumon|Rookie"
-          s lorcana "Elsa|Spirit of Winter|Shift 6|42/204 • EN • 1"
-          s lorcana "Elsa|Spirit of Winter|DEEP FREEZE"
-          s magic "Case of the Shattered Pact|Enchantment - Case|0001 U|MKM • EN"
-          s magic "Lightning Bolt|Instant|Lightning Bolt deals 3 damage"
-          s starwars "Luke Skywalker|Jedi Knight|051/252 • SOR • EN"
-          s starwars "Luke Skywalker|Jedi Knight|RESTORE 3"
-          s fab "Command and Conquer|Generic Action - Attack|1HP360"
-          s fab "Head Shot|Ranger Action"
-          echo "=== GET"; curl -sS "http://localhost:3000/api/scan/onepiece?q=OP01-120" | head -c 400; echo
+          for q in "Gengar ex 30c" "30C Gengar" "Pikachu ex" "Gengar" "PBL 048"; do echo "=== $q"; curl -sS -G --data-urlencode "q=$q" "http://localhost:3000/api/scan" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('exact'), [(c['ref'], c['name'], c['code']) for c in d.get('cards', [])][:6])"; done
           for p in /onepiece/scan /yugioh/scan /scan; do curl -sS -o /dev/null -w "$p %{http_code}\n" "http://localhost:3000$p"; done
           tail -20 server.log
