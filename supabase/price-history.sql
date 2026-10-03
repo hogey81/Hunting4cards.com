@@ -6,6 +6,7 @@
 -- The secret the daily job must send. The "private" schema can't be reached through the app.
 create schema if not exists private;
 create table if not exists private.cron_token (token text not null);
+alter table private.cron_token enable row level security;
 insert into private.cron_token (token)
 select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')
 where not exists (select 1 from private.cron_token);
