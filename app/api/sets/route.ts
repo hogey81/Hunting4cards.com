@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { assetImage, getSet } from "@/lib/tcgdex";
 import { isOtherGame, parseRef } from "@/lib/card-ref";
-import { BY_PREFIX } from "@/lib/games";
+import { BY_PREFIX, GAMES } from "@/lib/games";
 import { gameOf } from "@/lib/games/refs";
 import { setCode } from "@/lib/set-code";
 
@@ -15,7 +15,12 @@ export type MySet = {
   total: number;
   serie: string;
   releaseDate: string | null;
+  // The game, for grouping "Mijn sets": Pokémon first, then the other games in the app's order.
+  game: string;
+  gameOrder: number;
 };
+
+const OTHER_ORDER = Object.values(GAMES).map((g) => g.prefix);
 
 // The sets behind the given set references ("me05", "ja:M4"): what the "Mijn sets"
 // overview needs to list the sets someone has cards from.
@@ -44,7 +49,7 @@ export async function GET(request: Request) {
       failed.push(ref);
       continue;
     }
-    sets.push({ ref, name: set.name, code: set.code.toUpperCase(), images: [set.image], total: set.total, serie: game.name, releaseDate: set.date });
+    sets.push({ ref, name: set.name, code: set.code.toUpperCase(), images: [set.image], total: set.total, serie: game.name, releaseDate: set.date, game: game.name, gameOrder: 1 + OTHER_ORDER.indexOf(game.prefix) });
   }
 
   const tcgdex = refs.filter((ref) => !isOtherGame(ref));
@@ -61,6 +66,8 @@ export async function GET(request: Request) {
       total: set.cardCount.total,
       serie: ja ? `${set.serie.name} (Japans)` : set.serie.name,
       releaseDate: set.releaseDate ?? null,
+      game: "Pokémon",
+      gameOrder: 0,
     });
   });
 
