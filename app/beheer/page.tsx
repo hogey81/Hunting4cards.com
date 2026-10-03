@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount } from "@/lib/account";
-import { adminStats, LIMITS, type AdminStats } from "@/lib/admin";
+import { adminStats, LIMITS, priceHistoryStatus, type AdminStats } from "@/lib/admin";
 
 const REFRESH_MS = 60_000;
 
@@ -12,6 +12,7 @@ export default function BeheerPage() {
   const { user, ready } = useAccount();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [state, setState] = useState<"loading" | "denied" | "error" | "ok">("loading");
+  const [prices, setPrices] = useState<{ day: string; count: number } | null | undefined>(undefined);
 
   useEffect(() => {
     if (!user) return;
@@ -25,6 +26,7 @@ export default function BeheerPage() {
         } else setState(r.denied ? "denied" : "error");
       });
     load();
+    priceHistoryStatus().then((p) => !cancelled && setPrices(p));
     const timer = setInterval(load, REFRESH_MS);
     return () => {
       cancelled = true;
@@ -76,6 +78,15 @@ export default function BeheerPage() {
             <Stat value={stats.collections} label="online collecties" />
             <Stat value={stats.cards} label="kaarten opgeslagen" />
           </div>
+
+          <h2>Prijsgeschiedenis</h2>
+          <p className="muted">
+            {prices === undefined
+              ? "Laden…"
+              : prices === null
+                ? "Nog geen prijzen opgeslagen. Dit gebeurt elke ochtend vroeg."
+                : `Laatst opgeslagen op ${new Date(prices.day).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}: ${prices.count.toLocaleString("nl-NL")} prijzen.`}
+          </p>
 
           <h2>Bij de diensten zelf</h2>
           <p className="muted">Websiteverkeer en serverkosten staan alleen bij Vercel zelf.</p>

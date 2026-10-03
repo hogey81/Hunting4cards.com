@@ -32,3 +32,14 @@ export const LIMITS = {
   activeUsersPerMonth: 50000, // Supabase
   databaseBytes: 500 * 1024 * 1024, // Supabase
 };
+
+// Last day the daily job saved prices (supabase/price-history.sql), and how many.
+export async function priceHistoryStatus(): Promise<{ day: string; count: number } | null> {
+  const sb = supabase();
+  if (!sb) return null;
+  const { data } = await sb.from("price_history").select("day").order("day", { ascending: false }).limit(1);
+  const day = data?.[0]?.day as string | undefined;
+  if (!day) return null;
+  const { count } = await sb.from("price_history").select("*", { count: "exact", head: true }).eq("day", day);
+  return { day, count: count ?? 0 };
+}
