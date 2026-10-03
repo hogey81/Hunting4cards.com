@@ -2,16 +2,23 @@ name: api-probe
 on:
   push:
     branches: [api-probe]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Live check
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Wait for live deploy
+        run: sleep 150
+      - name: Audit live site
         run: |
-          for i in 1 2 3 4 5 6; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" https://www.hunting4cards.com/beheer)
-            echo "try $i: /beheer HTTP $code"
-            [ "$code" = "200" ] && break
-            sleep 30
-          done
-          curl -sSI https://www.hunting4cards.com/ | grep -iE "^(x-frame|x-content|referrer|permissions)"
+          cd audit-tool && npm init -y >/dev/null && npm i playwright@1.55 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          node audit.mjs
+          rm -rf ../audit && mv audit ../audit
+      - name: Save results on this branch
+        run: |
+          git config user.name "audit-bot"; git config user.email "noreply@anthropic.com"
+          git add audit && git commit -m "Audit results" && git push
