@@ -12,7 +12,13 @@ type Game = {
 // The game picker: one tile per game, each with its own badge picture from
 // public/games/ (no characters or brand logos, so no rights issues). The start screen;
 // the games with a card source open their part (/pokemon, /magic, ...), the others are coming.
-export default function GamesPage() {
+// Look of the picker, to compare on the preview: light page with coloured tiles (default),
+// ?stijl=rustig for white tiles with a coloured edge, ?stijl=donker for the old navy page.
+const STYLES: Record<string, string> = { licht: "games-light", rustig: "games-light games-calm", donker: "" };
+
+export default async function GamesPage({ searchParams }: { searchParams: Promise<{ stijl?: string }> }) {
+  const { stijl } = await searchParams;
+  const look = STYLES[stijl ?? "licht"] ?? STYLES.licht;
   const games: Game[] = [
     {
       key: "pokemon",
@@ -153,7 +159,7 @@ export default function GamesPage() {
   ];
 
   return (
-    <div className="games">
+    <div className={`games ${look}`}>
       <div className="games-inner games-wide">
         <h1 className="games-title">Kies je spel</h1>
         <p className="games-lead">Welke kaarten wil je verzamelen?</p>
@@ -174,7 +180,8 @@ export default function GamesPage() {
                     height="24"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#FFC928"
+                    stroke="currentColor"
+                    className="game-arrow"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -190,7 +197,7 @@ export default function GamesPage() {
                 key={g.key}
                 href={g.href}
                 className="game"
-                style={{ background: g.color }}
+                style={{ "--game": g.color } as React.CSSProperties}
               >
                 {body}
               </Link>
@@ -198,7 +205,7 @@ export default function GamesPage() {
               <div
                 key={g.key}
                 className="game game-soon"
-                style={{ background: g.color }}
+                style={{ "--game": g.color } as React.CSSProperties}
                 aria-disabled="true"
               >
                 {body}

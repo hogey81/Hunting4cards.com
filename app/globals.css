@@ -349,7 +349,7 @@ a.chip { display: inline-flex; align-items: center; }
 .games-lead { margin: 4px 0 24px; font-weight: 500; color: #C9D3EA; }
 .games-inner { max-width: 520px; margin: 0 auto; }
 .games-list { display: flex; flex-direction: column; gap: 12px; }
-.game { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 20px; border: 3px solid #FFC928; color: #fff; text-decoration: none; min-height: 112px; box-sizing: border-box; }
+.game { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 20px; border: 3px solid #FFC928; background: var(--game); color: #fff; text-decoration: none; min-height: 112px; box-sizing: border-box; }
 .game:active { transform: scale(0.98); }
 .game-soon { opacity: 0.85; }
 .game-pic { width: 96px; height: 96px; flex-shrink: 0; border-radius: 16px; background: #0B1630; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -358,6 +358,22 @@ a.chip { display: inline-flex; align-items: center; }
 .game-name { font-family: var(--display); font-weight: 800; font-size: 24px; color: #FFD43B; }
 .game-sub { font-size: 14px; font-weight: 700; color: #F1F4FF; }
 .games-more { margin-top: 20px; text-align: center; font-weight: 500; color: #C9D3EA; }
+.game-arrow { color: #FFC928; flex-shrink: 0; }
+
+/* Light picker: the same light page as the rest of the app. */
+.games-light { background: #EEF2F8; color: #0B1630; }
+.games-light .games-title { color: #0B1630; }
+.games-light .games-lead, .games-light .games-more { color: #4A5878; }
+.games-light .game { border-width: 2px; box-shadow: 0 6px 16px rgba(11, 22, 48, 0.14); }
+/* Calm version: white tiles, the game's colour only as an edge. */
+.games-calm .game {
+  background: #fff; color: #0B1630; border: 1px solid #DDE4F0; border-left: 8px solid var(--game);
+  box-shadow: 0 2px 10px rgba(11, 22, 48, 0.06); min-height: 96px;
+}
+.games-calm .game-pic { width: 76px; height: 76px; border-radius: 14px; }
+.games-calm .game-name { color: #0B1630; font-size: 21px; }
+.games-calm .game-sub { color: #4A5878; font-weight: 600; }
+.games-calm .game-arrow { color: var(--game); }
 
 /* Account */
 .account-form { display: flex; flex-direction: column; gap: 10px; }
