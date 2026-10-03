@@ -37,7 +37,7 @@ export default function HomeView() {
 
       <form action="/zoeken" className="home-search" role="search">
         <label htmlFor="home-q" className="sr-only">Zoek een kaart op naam of code</label>
-        <input id="home-q" name="q" type="search" placeholder="Zoek een kaart, bv. Charizard of PBL 048" autoComplete="off" enterKeyHint="search" />
+        <input id="home-q" name="q" type="search" placeholder="Naam of code, bv. PBL 048" autoComplete="off" enterKeyHint="search" />
         <button type="submit" aria-label="Zoeken">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
