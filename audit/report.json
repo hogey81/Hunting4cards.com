@@ -1,0 +1,412 @@
+[
+  {
+    "label": "spelkeuze",
+    "path": "/",
+    "status": 200,
+    "dom": 602,
+    "idle": 2299,
+    "issues": []
+  },
+  {
+    "label": "pokemon-home",
+    "path": "/pokemon",
+    "status": 200,
+    "dom": 278,
+    "idle": 1118,
+    "issues": []
+  },
+  {
+    "label": "pokemon-sets",
+    "path": "/sets",
+    "status": 200,
+    "dom": 471,
+    "idle": 2389,
+    "issues": []
+  },
+  {
+    "label": "pokemon-set",
+    "path": "/sets/30th",
+    "tapToNewPage": 34,
+    "tapToContent": 823,
+    "issues": []
+  },
+  {
+    "label": "pokemon-kaart",
+    "path": "/kaart/30th-001",
+    "tapToNewPage": 54,
+    "tapToContent": 2349,
+    "issues": []
+  },
+  {
+    "label": "zoeken",
+    "path": "/zoeken?q=Pikachu",
+    "status": 200,
+    "dom": 421,
+    "idle": 1631,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Flying Pikachu VMAX\"",
+      "afgekapt <div class=\"tile-name\"> \"Pikachu & Zekrom GX\"",
+      "afgekapt <div class=\"tile-name\"> \"Surfing Pikachu VMAX\"",
+      "afgekapt <div class=\"tile-name\"> \"___________'s Pikachu\"",
+      "afgekapt <div class=\"tile-name\"> \"ピカチュウ&ゼクロムGX\"",
+      "afgekapt <div class=\"tile-name\"> \"ピカチュウ（デルタ種）\""
+    ]
+  },
+  {
+    "label": "japanse-set",
+    "path": "/jp/sets/SV2a",
+    "status": 200,
+    "dom": 212,
+    "idle": 1495,
+    "issues": []
+  },
+  {
+    "label": "yugioh-home",
+    "path": "/yugioh",
+    "status": 200,
+    "dom": 358,
+    "idle": 2110,
+    "issues": []
+  },
+  {
+    "label": "yugioh-sets",
+    "path": "/yugioh/sets",
+    "status": 200,
+    "dom": 925,
+    "idle": 2024,
+    "issues": []
+  },
+  {
+    "label": "yugioh-set",
+    "path": "/yugioh/sets/MAMS",
+    "tapToNewPage": 50,
+    "tapToContent": 869,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Blue-Eyes White Dragon, the White Phantom Beast\"",
+      "afgekapt <div class=\"tile-name\"> \"Deep-Eyes White Dragon, the Blue Abyss\"",
+      "afgekapt <div class=\"tile-name\"> \"The Guiding Flute of Summoning Dragons\"",
+      "afgekapt <div class=\"tile-name\"> \"Cyber End Dragon, the Final Strike Dragon\"",
+      "afgekapt <div class=\"tile-name\"> \"Cyber Dragon, the Luminous Mech Dragon\"",
+      "afgekapt <div class=\"tile-name\"> \"Crimson Dragon Quetzalcoatl\"",
+      "afgekapt <div class=\"tile-name\"> \"Red Nova Dragon - Burning Soul\"",
+      "afgekapt <div class=\"tile-name\"> \"Red Dragon Archfiend's Chains\"",
+      "afgekapt <div class=\"tile-name\"> \"Neo Galaxy-Eyes Photon Dragon - Photon Howling\"",
+      "afgekapt <div class=\"tile-name\"> \"Galaxy-Eyes Photon Change Dragon\"",
+      "afgekapt <div class=\"tile-name\"> \"Galaxy Defense Robot Orbital 7\"",
+      "afgekapt <div class=\"tile-name\"> \"Starving Venom Fusion Dragon, Four Heavenly Dragons\"",
+      "afgekapt <div class=\"tile-name\"> \"Clear Wing Synchro Dragon, Four Heavenly Dragons\"",
+      "afgekapt <div class=\"tile-name\"> \"Dark Rebellion Xyz Dragon, Four Heavenly Dragons\"",
+      "afgekapt <div class=\"tile-name\"> \"Borreload Liberator Dragon\"",
+      "afgekapt <div class=\"tile-name\"> \"Triple Borrel Launch\"",
+      "afgekapt <div class=\"tile-name\"> \"Blue-Eyes Toon Dragon\"",
+      "afgekapt <div class=\"tile-name\"> \"Toon Dark Magician Girl\"",
+      "afgekapt <div class=\"tile-name\"> \"Witchcrafter Madame Verre\"",
+      "afgekapt <div class=\"tile-name\"> \"Witchcrafter Vice-Madame\"",
+      "afgekapt <div class=\"tile-name\"> \"Unchained Abomination\"",
+      "afgekapt <div class=\"tile-name\"> \"Unchained Soul Lord of Yama\""
+    ]
+  },
+  {
+    "label": "yugioh-kaart",
+    "path": "/yugioh/kaart/MAMS-EN001~GMR",
+    "tapToNewPage": 48,
+    "tapToContent": 835,
+    "issues": []
+  },
+  {
+    "label": "magic-home",
+    "path": "/magic",
+    "status": 200,
+    "dom": 274,
+    "idle": 1232,
+    "issues": []
+  },
+  {
+    "label": "magic-sets",
+    "path": "/magic/sets",
+    "status": 200,
+    "dom": 608,
+    "idle": 1634,
+    "issues": []
+  },
+  {
+    "label": "magic-set",
+    "path": "/magic/sets/pf27",
+    "tapToNewPage": 51,
+    "tapToContent": 859,
+    "issues": []
+  },
+  {
+    "label": "magic-kaart",
+    "path": "/magic/kaart/pf27/1",
+    "tapToNewPage": 44,
+    "tapToContent": 827,
+    "issues": []
+  },
+  {
+    "label": "lorcana-home",
+    "path": "/lorcana",
+    "status": 200,
+    "dom": 1523,
+    "idle": 2395,
+    "issues": []
+  },
+  {
+    "label": "lorcana-sets",
+    "path": "/lorcana/sets",
+    "status": 200,
+    "dom": 416,
+    "idle": 1290,
+    "issues": []
+  },
+  {
+    "label": "lorcana-set",
+    "path": "/lorcana/sets/14",
+    "tapToNewPage": 50,
+    "tapToContent": 835,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Abuelita - Loving Grandmother\"",
+      "afgekapt <div class=\"tile-name\"> \"Max Goof - Music Lover\"",
+      "afgekapt <div class=\"tile-name\"> \"Pete - Suave Showoff\"",
+      "afgekapt <div class=\"tile-name\"> \"Miriam Mendelsohn - Front-Row Fan\"",
+      "afgekapt <div class=\"tile-name\"> \"Priya Mangal - Immovable Fan\"",
+      "afgekapt <div class=\"tile-name\"> \"Judy Hopps - Helpful Officer\"",
+      "afgekapt <div class=\"tile-name\"> \"Miguel Rivera - Promising Musician\"",
+      "afgekapt <div class=\"tile-name\"> \"Nick Wilde - Inquisitive Harbormaster\"",
+      "afgekapt <div class=\"tile-name\"> \"P.J. Pete - Devoted Fan\"",
+      "afgekapt <div class=\"tile-name\"> \"Mr. Manchas - Service with a Smile\"",
+      "afgekapt <div class=\"tile-name\"> \"Nick Wilde - Toy Drive Officer\"",
+      "afgekapt <div class=\"tile-name\"> \"Clawhauser - Safety Officer\"",
+      "afgekapt <div class=\"tile-name\"> \"Elisa Maza - Hardworking Detective\"",
+      "afgekapt <div class=\"tile-name\"> \"Powerline - Megastar\"",
+      "afgekapt <div class=\"tile-name\"> \"Lionheart - Incumbent Mayor\"",
+      "afgekapt <div class=\"tile-name\"> \"Aurora - Delightful Musician\"",
+      "afgekapt <div class=\"tile-name\"> \"Russel - Finding Adventure\"",
+      "afgekapt <div class=\"tile-name\"> \"Miguel Rivera - Street Musician\"",
+      "afgekapt <div class=\"tile-name\"> \"Goofy - Knows the Band\"",
+      "afgekapt <div class=\"tile-name\"> \"Mickey Mouse - Best in Town\"",
+      "afgekapt <div class=\"tile-name\"> \"Judy Hopps - Always Vigilant\"",
+      "afgekapt <div class=\"tile-name\"> \"Nick Wilde - Providing Backup\"",
+      "afgekapt <div class=\"tile-name\"> \"Miguel Rivera - Accomplished Musician\"",
+      "afgekapt <div class=\"tile-name\"> \"Shed Your Weary Load\"",
+      "afgekapt <div class=\"tile-name\"> \"Never Too Far Apart\""
+    ]
+  },
+  {
+    "label": "lorcana-kaart",
+    "path": "/lorcana/kaart/14/1",
+    "tapToNewPage": 54,
+    "tapToContent": 841,
+    "issues": []
+  },
+  {
+    "label": "onepiece-home",
+    "path": "/onepiece",
+    "status": 200,
+    "dom": 2651,
+    "idle": 3453,
+    "issues": []
+  },
+  {
+    "label": "onepiece-sets",
+    "path": "/onepiece/sets",
+    "status": 200,
+    "dom": 823,
+    "idle": 1706,
+    "issues": []
+  },
+  {
+    "label": "onepiece-set",
+    "path": "/onepiece/sets/OP-17",
+    "tapToNewPage": 58,
+    "tapToContent": 846,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Roronoa Zoro (EB04-007) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Monkey.D.Luffy (EB04-061) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Monkey.D.Garp (OP12-056) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Shanks (OP13-028) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Silvers Rayleigh (OP14-108) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Yamato (OP16-098) (SP)\"",
+      "afgekapt <div class=\"tile-name\"> \"Edward.Newgate (001)\"",
+      "afgekapt <div class=\"tile-name\"> \"Edward.Newgate (001) (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Inuarashi & Nekomamushi\"",
+      "afgekapt <div class=\"tile-name\"> \"Edward.Newgate (005)\"",
+      "afgekapt <div class=\"tile-name\"> \"Edward.Newgate (005) (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Edward.Newgate (005) (Manga)\"",
+      "afgekapt <div class=\"tile-name\"> \"The Power to Destroy the World\"",
+      "afgekapt <div class=\"tile-name\"> \"I Don't Have Time to Chat with Snot-Nosed Brats\"",
+      "afgekapt <div class=\"tile-name\"> \"Shanks (020) (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Shanks (022) (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Shanks (022) (Manga)\"",
+      "afgekapt <div class=\"tile-name\"> \"Benn.Beckman (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Bonk Punch & Monster\"",
+      "afgekapt <div class=\"tile-name\"> \"Monkey.D.Luffy (030)\"",
+      "afgekapt <div class=\"tile-name\"> \"Yasopp (Alternate Art)\"",
+      "afgekapt <div class=\"tile-name\"> \"Roronoa Zoro (035)\"",
+      "afgekapt <div class=\"tile-name\"> \"Withdraw Now and Allow Me to Save Face\"",
+      "afgekapt <div class=\"tile-name\"> \"Are You That Afraid of the New Era?!\"",
+      "afgekapt <div class=\"tile-name\"> \"Are You That Afraid of the New Era?! (Alternate Art)\""
+    ]
+  },
+  {
+    "label": "onepiece-kaart",
+    "path": "/onepiece/kaart/OP-17/EB04-007_p2",
+    "tapToNewPage": 46,
+    "tapToContent": 841,
+    "issues": []
+  },
+  {
+    "label": "digimon-home",
+    "path": "/digimon",
+    "status": 200,
+    "dom": 398,
+    "idle": 1299,
+    "issues": []
+  },
+  {
+    "label": "digimon-sets",
+    "path": "/digimon/sets",
+    "status": 200,
+    "dom": 138,
+    "idle": 1210,
+    "issues": []
+  },
+  {
+    "label": "digimon-set",
+    "path": "/digimon/sets/BT26",
+    "tapToNewPage": 39,
+    "tapToContent": 825,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Chronomon: Holy Mode\"",
+      "afgekapt <div class=\"tile-name\"> \"Aegiochusmon: Holy\"",
+      "afgekapt <div class=\"tile-name\"> \"TyrantKabuterimon\"",
+      "afgekapt <div class=\"tile-name\"> \"Rosemon: Burst Mode\"",
+      "afgekapt <div class=\"tile-name\"> \"Cerberusmon: Werewolf Mode\"",
+      "afgekapt <div class=\"tile-name\"> \"Chronomon: Destroy Mode\"",
+      "afgekapt <div class=\"tile-name\"> \"Aegiochusmon: Dark\"",
+      "afgekapt <div class=\"tile-name\"> \"ScourgeChiropmon\"",
+      "afgekapt <div class=\"tile-name\"> \"Junomon: Hysteric Mode\"",
+      "afgekapt <div class=\"tile-name\"> \"The Thunder Emperor Awakens\"",
+      "afgekapt <div class=\"tile-name\"> \"Jupitermon: Wrath Mode\""
+    ]
+  },
+  {
+    "label": "digimon-kaart",
+    "path": "/digimon/kaart/BT26-001",
+    "tapToNewPage": 64,
+    "tapToContent": 849,
+    "issues": []
+  },
+  {
+    "label": "starwars-home",
+    "path": "/starwars",
+    "status": 200,
+    "dom": 394,
+    "idle": 1221,
+    "issues": []
+  },
+  {
+    "label": "starwars-sets",
+    "path": "/starwars/sets",
+    "status": 200,
+    "dom": 130,
+    "idle": 1295,
+    "issues": []
+  },
+  {
+    "label": "starwars-set",
+    "path": "/starwars/sets/IC27",
+    "tapToNewPage": 47,
+    "tapToContent": 835,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Grand Admiral Thrawn, Listen to Me Carefully\"",
+      "afgekapt <div class=\"tile-name\"> \"Admiral Holdo, We Are the Spark\"",
+      "afgekapt <div class=\"tile-name\"> \"Captain Rex, Unwavering Belief\"",
+      "afgekapt <div class=\"tile-name\"> \"Avar Kriss, For Light and Life\"",
+      "afgekapt <div class=\"tile-name\"> \"Qui-Gon Jinn, Unwavering Belief\"",
+      "afgekapt <div class=\"tile-name\"> \"Grand Inquisitor, How the Mighty Will Fall\"",
+      "afgekapt <div class=\"tile-name\"> \"Boba Fett, Compensated if He Dies\"",
+      "afgekapt <div class=\"tile-name\"> \"I've Got A Bad Feeling\""
+    ]
+  },
+  {
+    "label": "starwars-kaart",
+    "path": "/starwars/kaart/IC27/024",
+    "tapToNewPage": 53,
+    "tapToContent": 835,
+    "issues": []
+  },
+  {
+    "label": "fab-home",
+    "path": "/fab",
+    "status": 200,
+    "dom": 1527,
+    "idle": 3252,
+    "issues": []
+  },
+  {
+    "label": "fab-sets",
+    "path": "/fab/sets",
+    "status": 200,
+    "dom": 1234,
+    "idle": 3093,
+    "issues": []
+  },
+  {
+    "label": "fab-set",
+    "path": "/fab/sets/AMO",
+    "tapToNewPage": 47,
+    "tapToContent": 838,
+    "issues": [
+      "afgekapt <div class=\"tile-name\"> \"Dr. Mortimer, Blight of the Pits\"",
+      "afgekapt <div class=\"tile-name\"> \"Viral Diffusion (Red)\""
+    ]
+  },
+  {
+    "label": "fab-kaart",
+    "path": "/fab/kaart/AMO/001",
+    "tapToNewPage": 45,
+    "tapToContent": 831,
+    "issues": []
+  },
+  {
+    "label": "collectie",
+    "path": "/collectie",
+    "status": 200,
+    "dom": 197,
+    "idle": 1309,
+    "issues": []
+  },
+  {
+    "label": "mijn-sets",
+    "path": "/collectie/sets",
+    "status": 200,
+    "dom": 211,
+    "idle": 928,
+    "issues": []
+  },
+  {
+    "label": "scan",
+    "path": "/scan",
+    "status": 200,
+    "dom": 233,
+    "idle": 1947,
+    "issues": []
+  },
+  {
+    "label": "account",
+    "path": "/account",
+    "status": 200,
+    "dom": 227,
+    "idle": 1124,
+    "issues": []
+  },
+  {
+    "label": "privacy",
+    "path": "/privacy",
+    "status": 200,
+    "dom": 218,
+    "idle": 999,
+    "issues": []
+  }
+]
