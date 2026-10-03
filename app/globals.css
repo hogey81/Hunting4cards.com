@@ -295,7 +295,12 @@ a.chip { display: inline-flex; align-items: center; }
 }
 .condition-hint { margin: 8px 2px 0; font-size: 13px; color: var(--muted); }
 .scan-condition { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 14px; }
-.scan-condition select { font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: inherit; }
+/* Navy box on the light page: light text, and a dark native list when it opens. */
+.scan-condition select {
+  font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 10px; border: 1px solid #22397A;
+  background: var(--surface); color: #F1F4FF; color-scheme: dark; min-height: 44px;
+}
+.scan-condition select option { background: var(--surface); color: #F1F4FF; }
 .scan-guide { pointer-events: none; }
 .scan-zoom {
   position: absolute; right: 12px; bottom: 12px; min-width: 48px; height: 48px; border-radius: 24px; border: none;
