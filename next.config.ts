@@ -10,6 +10,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep pages that were just visited for a minute, so going back is instant.
+  experimental: { staleTimes: { dynamic: 60 } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
